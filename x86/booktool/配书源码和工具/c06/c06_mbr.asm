@@ -1,7 +1,7 @@
-         ;�����嵥6-1
-         ;�ļ�����c06_mbr.asm
-         ;�ļ�˵����Ӳ����������������
-         ;�������ڣ�2011-4-12 22:12 
+         ;代码清单6-1
+         ;文件名：c06_mbr.asm
+         ;文件说明：硬盘主引导扇区代码
+         ;创建日期：2011-4-12 22:12 
       
          jmp near start
          
@@ -10,33 +10,33 @@
   number db 0,0,0,0,0
   
   start:
-         mov ax,0x7c0                  ;�������ݶλ���ַ 
+         mov ax,0x7c0                  ;设置数据段基地址 
          mov ds,ax
          
-         mov ax,0xb800                 ;���ø��Ӷλ���ַ 
+         mov ax,0xb800                 ;设置附加段基地址 
          mov es,ax
          
-         cld
-         mov si,mytext                 
-         mov di,0
-         mov cx,(number-mytext)/2      ;ʵ���ϵ��� 13
-         rep movsw
+         cld                           ;方向清零指令,将DF清零,表示指令传送是正方向
+         mov si,mytext                 ;设置SI寄存器的内容到源串的首地址
+         mov di,0                      ;设置目的地的首地址到DI寄存器
+         mov cx,(number-mytext)/2      ;设置要批量传送的字节数，实际上等于 13
+         rep movsw                     ;单纯的movsw和movsb只执行一次,前缀rep表示CX不为0就重复
      
-         ;�õ������������ƫ�Ƶ�ַ
+         ;得到标号所代表的偏移地址
          mov ax,number
          
-         ;���������λ
+         ;计算各个数位
          mov bx,ax
-         mov cx,5                      ;ѭ������ 
-         mov si,10                     ;���� 
+         mov cx,5                      ;循环次数 
+         mov si,10                     ;除数 
   digit: 
          xor dx,dx
          div si
-         mov [bx],dl                   ;������λ
+         mov [bx],dl                   ;保存数位
          inc bx 
          loop digit
          
-         ;��ʾ������λ
+         ;显示各个数位
          mov bx,number 
          mov si,4                      
    show:
@@ -44,9 +44,9 @@
          add al,0x30
          mov ah,0x04
          mov [es:di],ax
-         add di,2
-         dec si
-         jns show
+         add di,2                     ;将di加2,指向下一块内存单元
+         dec si                       ;将si减1,使下次bx+si指向千位,百位...,dec会影响SF位,dec后最高位为0,则SF为0,否则为1
+         jns show                     ;如果未设置符号位,则转到show所在位置执行
          
          mov word [es:di],0x0744
 
