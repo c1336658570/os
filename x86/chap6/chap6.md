@@ -16,7 +16,7 @@ cld为方向清零指令，无操作数，与其相反的为置方向标志指�
 
 movsb		表示传送一个字节
 
-movsw		表示传送一个字
+movsw		表示传送一个字s
 
 rep movsw 		表示只要CX不为0就重复执行movsw
 
