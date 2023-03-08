@@ -234,3 +234,27 @@ jcxz show			如果CX为0则转移，否则不转移
 jmp near $                   无限循环,nasm编译器提供了$,可以理解为隐藏在当前行行首的标号
 
 times 510-($-$$) db 0               ;重复执行db 0若干次,次数由510-($-$$)得到,出去0x55和0xaa后,剩余的主引导扇区是510个字节,$$nasm编译器提供的另一个标记,代表当前汇编节(段)的起始汇编地址
+
+
+
+单步调试指令如果遇到rep movsw会重复执行，直到cx为0才执行下一条
+
+rep movsw等价指令为rep movsw word ptr es:[di] , word ptr ds:[si]
+
+loop指令循环也会导致s一直执行
+
+使用n可以让调试直接跳出循环去执行吓一跳指令。
+
+n对下面无效
+
+<img src="/home/cccmmf/操作系统/x86/chap6/屏幕截图 2023-03-08 205104.png" alt="屏幕截图 2023-03-08 205104" style="zoom:80%;" />
+
+<img src="/home/cccmmf/操作系统/x86/chap6/屏幕截图 2023-03-08 232558.png" alt="屏幕截图 2023-03-08 232558" style="zoom:80%;" />
+
+<img src="/home/cccmmf/操作系统/x86/chap6/屏幕截图 2023-03-08 232620.png" alt="屏幕截图 2023-03-08 232620" style="zoom:38%;" />
+
+info可以查看flags，8086中flags叫做flags，16位，32位处理器中做了拓展，叫eflags，在bochs中应输入info eflags，因为bochs是32位
+
+用法：info 		info  eflags
+
+<img src="/home/cccmmf/操作系统/x86/chap6/屏幕截图 2023-03-08 233059.png" alt="屏幕截图 2023-03-08 233059" style="zoom:38%;" />
