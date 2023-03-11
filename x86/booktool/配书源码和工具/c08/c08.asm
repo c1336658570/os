@@ -8,11 +8,11 @@ SECTION header vstart=0                     ;定义用户程序头部段
     program_length  dd program_end          ;程序总长度[0x00]
     
     ;用户程序入口点
-    code_entry      dw start                ;偏移地址[0x04]
-                    dd section.code_1.start ;段地址[0x06] 
+    code_entry      dw start                ;偏移地址[0x04]，由于段声明处有vstart=0，所以start是相对于段开头的地址
+                    dd section.code_1.start ;段地址[0x06],由于段起始地址可以是20位地址的任何地方，所以需要用dd保存
     
     realloc_tbl_len dw (header_end-code_1_segment)/4
-                                            ;段重定位表项个数[0x0a]
+                                            ;段重定位表项个数[0x0a],每个表项4字节
     
     ;段重定位表           
     code_1_segment  dd section.code_1.start ;[0x0c]
@@ -28,7 +28,7 @@ SECTION code_1 align=16 vstart=0         ;定义代码段1（16字节对齐）
 put_string:                              ;显示串(0结尾)。
                                          ;输入：DS:BX=串地址
          mov cl,[bx]
-         or cl,cl                        ;cl=0 ?
+         or cl,cl                        ;cl=0 ?,or会导致zf置位，如果cl为0则zf会为1
          jz .exit                        ;是的，返回主程序 
          call put_char
          inc bx                          ;下一个字符 
@@ -136,7 +136,7 @@ put_char:                                ;显示一个字符
          ;初始执行时，DS和ES指向用户程序头部段
          mov ax,[stack_segment]           ;设置到用户程序自己的堆栈 
          mov ss,ax
-         mov sp,stack_end
+         mov sp,stack_end  ;等价于mov sp, 256，因为stack_end段定义了vstart=0，所以stack_end汇编地址为256
          
          mov ax,[data_1_segment]          ;设置到用户程序自己的数据段
          mov ds,ax
@@ -200,7 +200,7 @@ SECTION data_2 align=16 vstart=0
 ;===============================================================================
 SECTION stack align=16 vstart=0
            
-         resb 256
+         resb 256       ;伪指令resb用来保留256字节的栈空间。
 
 stack_end:  
 
