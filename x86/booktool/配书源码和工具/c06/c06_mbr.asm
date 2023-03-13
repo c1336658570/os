@@ -16,11 +16,11 @@
          mov ax,0xb800                 ;设置附加段基地址 
          mov es,ax
          
-         cld                           ;方向清零指令,将DF清零,表示指令传送是正方向
+         cld                           ;方向清零指令,将DF(方向标志)清零,表示指令传送是正方向
          mov si,mytext                 ;设置SI寄存器的内容到源串的首地址
          mov di,0                      ;设置目的地的首地址到DI寄存器
          mov cx,(number-mytext)/2      ;设置要批量传送的字节数，实际上等于 13
-         rep movsw                     ;单纯的movsw和movsb只执行一次,前缀rep表示CX不为0就重复
+         rep movsw                     ;单纯的movsw和movsb只执行一次,前缀rep表示CX不为0就重复,每执行一次cx减1
      
          ;得到标号所代表的偏移地址
          mov ax,number
@@ -34,7 +34,7 @@
          div si
          mov [bx],dl                   ;保存数位
          inc bx 
-         loop digit
+         loop digit            ;每循环一次cx减1
          
          ;显示各个数位
          mov bx,number 

@@ -1,4 +1,4 @@
-;6-2¿ÎºóÌâ£¬ÇóÕýÊýºÍ¸ºÊýÓÐ¶àÉÙ¸ö
+;6-2è¯¾åŽé¢˜ï¼Œæ±‚æ­£æ•°å’Œè´Ÿæ•°æœ‰å¤šå°‘ä¸ª
 
 jmp near start
 
@@ -7,25 +7,25 @@ data2   dw 0x90, 0xfff0, 0xa0, 0x1235, 0x2f, 0xc0, 0xc5bc
 number:
 
 start:
-        ;ÉèÖÃds¶Î¼Ä´æÆ÷
+        ;è®¾ç½®dsæ®µå¯„å­˜å™¨
         mov ax, 0x07c0
         mov ds, ax 
-        ;ÉèÖÃes¶Î¼Ä´æÆ÷
+        ;è®¾ç½®esæ®µå¯„å­˜å™¨
         mov ax, 0xb800
         mov es, ax
 
-        ;Éè¶¨Ñ­»·´ÎÊý
+        ;è®¾å®šå¾ªçŽ¯æ¬¡æ•°
         mov cx, data2 - data1
-        ;bxÇåÁã,¼ÇÂ¼ÕýÊý¸öÊý
+        ;bxæ¸…é›¶,è®°å½•æ­£æ•°ä¸ªæ•°
         xor bx, bx
-        ;dxÇåÁã,¼ÇÂ¼¸ºÊýµÄ¸öÊý
+        ;dxæ¸…é›¶,è®°å½•è´Ÿæ•°çš„ä¸ªæ•°
         xor dx, dx
-        ;ÉèÖÃ»ùµØÖ·
+        ;è®¾ç½®åŸºåœ°å€
         mov bp, data1
 
 digtal1:
-        xor ax, ax ;Çå¿Õax
-        mov al, [ds:bp]  ;bpÄ¬ÈÏÊÇss<<4Î»+bpÐÎ³ÉÎïÀíµØÖ·,ËùÒÔÐèÒªÏÔÊ¾Ö¸³ö·ÃÎÊds
+        xor ax, ax ;æ¸…ç©ºax
+        mov al, [ds:bp]  ;bpé»˜è®¤æ˜¯ss<<4ä½+bpå½¢æˆç‰©ç†åœ°å€,æ‰€ä»¥éœ€è¦æ˜¾ç¤ºæŒ‡å‡ºè®¿é—®ds
         inc bp
         cmp al, 0
         jge pos_num1
@@ -37,14 +37,14 @@ pos_num1:
 looop1:
         loop digtal1   
 
-        ;Éè¶¨Ñ­»·´ÎÊý
-        mov cx, (number - data2) / 2  ;³ý2ÊÇÒòÎªÒÔ×ÖÎªµ¥Î»
-        ;ÉèÖÃ»ùµØÖ·
+        ;è®¾å®šå¾ªçŽ¯æ¬¡æ•°
+        mov cx, (number - data2) / 2  ;é™¤2æ˜¯å› ä¸ºä»¥å­—ä¸ºå•ä½
+        ;è®¾ç½®åŸºåœ°å€
         mov bp, data2
 
 digtal2:
-        xor ax, ax ;Çå¿Õax
-        mov ax, [ds:bp]  ;bpÄ¬ÈÏÊÇss<<4Î»+bpÐÎ³ÉÎïÀíµØÖ·,ËùÒÔÐèÒªÏÔÊ¾Ö¸³ö·ÃÎÊds
+        xor ax, ax ;æ¸…ç©ºax
+        mov ax, [ds:bp]  ;bpé»˜è®¤æ˜¯ss<<4ä½+bpå½¢æˆç‰©ç†åœ°å€,æ‰€ä»¥éœ€è¦æ˜¾ç¤ºæŒ‡å‡ºè®¿é—®ds
         add bp, 0x02
         cmp ax, 0
         jge pos_num2
@@ -56,7 +56,7 @@ pos_num2:
 looop2:
         loop digtal2
 
-        ;Êä³ö
+        ;è¾“å‡º
         add bl, 0x30
         add dl, 0x30
         mov [es:0x00], bl 
