@@ -48,14 +48,14 @@ put_char:                                ;显示一个字符
          push es
 
          ;以下取当前光标位置
-         mov dx,0x3d4
+         mov dx,0x3d4           ;向0x3d4端口寄存器写入0x0e，然后从0x3d5中获取光标寄存器高8位
          mov al,0x0e
          out dx,al
          mov dx,0x3d5
          in al,dx                        ;高8位 
          mov ah,al
 
-         mov dx,0x3d4
+         mov dx,0x3d4           ;向0x3d4端口寄存器写入0x0f，然后从0x3d5中获取光标寄存器低8位
          mov al,0x0f
          out dx,al
          mov dx,0x3d5
@@ -88,8 +88,8 @@ put_char:                                ;显示一个字符
          add bx,1
 
  .roll_screen:
-         cmp bx,2000                     ;光标超出屏幕？滚屏
-         jl .set_cursor
+         cmp bx,2000                     ;光标超出屏幕？滚屏，即将2~25行内容整体向上提1行，用黑底白字空白字符填充25行。
+         jl .set_cursor                 ;光标未超出屏幕，即bx小于2000
 
          mov ax,0xb800
          mov ds,ax
@@ -102,13 +102,13 @@ put_char:                                ;显示一个字符
          mov bx,3840                     ;清除屏幕最底一行
          mov cx,80
  .cls:
-         mov word[es:bx],0x0720
+         mov word[es:bx],0x0720         ;黑底白字空白字符
          add bx,2
          loop .cls
 
-         mov bx,1920
+         mov bx,1920            ;光标的新位置
 
- .set_cursor:
+ .set_cursor:           ;新的光标位置写入光标寄存器
          mov dx,0x3d4
          mov al,0x0e
          out dx,al
@@ -144,7 +144,7 @@ put_char:                                ;显示一个字符
          mov bx,msg0
          call put_string                  ;显示第一段信息 
 
-         push word [es:code_2_segment]
+         push word [es:code_2_segment]  ;es一直指向用户程序头部段，这在加载程序中定义了从未更改过
          mov ax,begin
          push ax                          ;可以直接push begin,80386+
          
@@ -176,7 +176,7 @@ SECTION data_1 align=16 vstart=0
          db 'Back at SourceForge and in intensive development! '
          db 'Get the current versions from http://www.nasm.us/.'
          db 0x0d,0x0a,0x0d,0x0a
-         db '  Example code for calculate 1+2+...+1000:',0x0d,0x0a,0x0d,0x0a
+         db '  Example code for calculate 1+2+...+1000:',0x0d,0x0a,0x0d,0x0a    ;0x0d回车，0x0a换行
          db '     xor dx,dx',0x0d,0x0a
          db '     xor ax,ax',0x0d,0x0a
          db '     xor cx,cx',0x0d,0x0a
@@ -188,7 +188,7 @@ SECTION data_1 align=16 vstart=0
          db '     cmp cx,1000',0x0d,0x0a
          db '     jle @@',0x0d,0x0a
          db '     ... ...(Some other codes)',0x0d,0x0a,0x0d,0x0a
-         db 0
+         db 0           ;终止字符串
 
 ;===============================================================================
 SECTION data_2 align=16 vstart=0

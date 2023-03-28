@@ -42,12 +42,12 @@
          mov sp,cx
 
          mov bx,10
-         xor cx,cx
+         xor cx,cx ;将cx清零，用来累计一共有多少个数位
      @d:
-         inc cx
+         inc cx    ;cx加1表示分解出来的数位+1
          xor dx,dx
          div bx
-         or dl,0x30
+         or dl,0x30   ;dl保存余数,按位或，此处效果等同于+30
          push dx
          cmp ax,0
          jne @d
@@ -59,7 +59,7 @@
          inc di
          mov byte [es:di],0x07
          inc di
-         loop @a
+         loop @a    ;由cx决定循环次数，即一共分解出多少位，loop每执行一次cx减1
        
          jmp near $ 
        

@@ -1,21 +1,21 @@
-         ;´úÂëÇåµ¥9-2
-         ;ÎÄ¼şÃû£ºc09_2.asm
-         ;ÎÄ¼şËµÃ÷£ºÓÃÓÚÑİÊ¾BIOSÖĞ¶ÏµÄÓÃ»§³ÌĞò 
-         ;´´½¨ÈÕÆÚ£º2012-3-28 20:35
+         ;ä»£ç æ¸…å•9-2
+         ;æ–‡ä»¶åï¼šc09_2.asm
+         ;æ–‡ä»¶è¯´æ˜ï¼šç”¨äºæ¼”ç¤ºBIOSä¸­æ–­çš„ç”¨æˆ·ç¨‹åº 
+         ;åˆ›å»ºæ—¥æœŸï¼š2012-3-28 20:35
          
 ;===============================================================================
-SECTION header vstart=0                     ;¶¨ÒåÓÃ»§³ÌĞòÍ·²¿¶Î 
-    program_length  dd program_end          ;³ÌĞò×Ü³¤¶È[0x00]
+SECTION header vstart=0                     ;å®šä¹‰ç”¨æˆ·ç¨‹åºå¤´éƒ¨æ®µ 
+    program_length  dd program_end          ;ç¨‹åºæ€»é•¿åº¦[0x00]
     
-    ;ÓÃ»§³ÌĞòÈë¿Úµã
-    code_entry      dw start                ;Æ«ÒÆµØÖ·[0x04]
-                    dd section.code.start   ;¶ÎµØÖ·[0x06] 
+    ;ç”¨æˆ·ç¨‹åºå…¥å£ç‚¹
+    code_entry      dw start                ;åç§»åœ°å€[0x04]
+                    dd section.code.start   ;æ®µåœ°å€[0x06] 
     
     realloc_tbl_len dw (header_end-realloc_begin)/4
-                                            ;¶ÎÖØ¶¨Î»±íÏî¸öÊı[0x0a]
+                                            ;æ®µé‡å®šä½è¡¨é¡¹ä¸ªæ•°[0x0a]
     
     realloc_begin:
-    ;¶ÎÖØ¶¨Î»±í           
+    ;æ®µé‡å®šä½è¡¨           
     code_segment    dd section.code.start   ;[0x0c]
     data_segment    dd section.data.start   ;[0x14]
     stack_segment   dd section.stack.start  ;[0x1c]
@@ -23,7 +23,7 @@ SECTION header vstart=0                     ;¶¨ÒåÓÃ»§³ÌĞòÍ·²¿¶Î
 header_end:                
     
 ;===============================================================================
-SECTION code align=16 vstart=0           ;¶¨Òå´úÂë¶Î£¨16×Ö½Ú¶ÔÆë£© 
+SECTION code align=16 vstart=0           ;å®šä¹‰ä»£ç æ®µï¼ˆ16å­—èŠ‚å¯¹é½ï¼‰ 
 start:
       mov ax,[stack_segment]
       mov ss,ax
@@ -37,17 +37,17 @@ start:
  .putc:
       mov ah,0x0e
       mov al,[bx]
-      int 0x10
+      int 0x10  ;ä½¿ç”¨ä¸­æ–­0x10çš„0x0eå·åŠŸèƒ½ï¼Œè¯¥åŠŸèƒ½åœ¨å±å¹•ä¸Šçš„å…‰æ ‡å¤„å†™ä¸€ä¸ªå­—ç¬¦ï¼Œå¹¶æ¨è¿›å…‰æ ‡ä½ç½®ã€‚
       inc bx
       loop .putc
 
  .reps:
       mov ah,0x00
-      int 0x16
+      int 0x16      ;ä½¿ç”¨è½¯ä¸­æ–­0x16ä»é”®ç›˜è¯»å­—ç¬¦ï¼Œéœ€è¦åœ¨å¯„å­˜å™¨AHä¸­æŒ‡å®š0x00å·åŠŸèƒ½ï¼Œè¯¥ä¸­æ–­è¿”å›åï¼Œå¯„å­˜å™¨ALä¸­ä¸ºå­—ç¬¦çš„ASCIIç ã€‚
       
       mov ah,0x0e
       mov bl,0x07
-      int 0x10
+      int 0x10  ;ä½¿ç”¨ä¸­æ–­0x10çš„0x0eå·åŠŸèƒ½ï¼ŒæŠŠä»é”®ç›˜å–å¾—çš„å­—ç¬¦æ˜¾ç¤ºåˆ°å±å¹•ä¸Š
 
       jmp .reps
 
