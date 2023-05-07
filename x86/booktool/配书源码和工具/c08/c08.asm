@@ -15,7 +15,7 @@ SECTION header vstart=0                     ;定义用户程序头部段
                                             ;段重定位表项个数[0x0a],每个表项4字节
     
     ;段重定位表           
-    code_1_segment  dd section.code_1.start ;[0x0c]
+    code_1_segment  dd section.code_1.start ;[0x0c]     ;code_1段相对于程序开头的汇编地址
     code_2_segment  dd section.code_2.start ;[0x10]
     data_1_segment  dd section.data_1.start ;[0x14]
     data_2_segment  dd section.data_2.start ;[0x18]
@@ -24,7 +24,7 @@ SECTION header vstart=0                     ;定义用户程序头部段
     header_end:                
     
 ;===============================================================================
-SECTION code_1 align=16 vstart=0         ;定义代码段1（16字节对齐） 
+SECTION code_1 align=16 vstart=0         ;定义代码段1（16字节对齐） ，vstart表示计算汇编地址时从该段开头开始计算，并且从0开始
 put_string:                              ;显示串(0结尾)。
                                          ;输入：DS:BX=串地址
          mov cl,[bx]
@@ -67,7 +67,7 @@ put_char:                                ;显示一个字符
          mov ax,bx                       ;此句略显多余，但去掉后还得改书，麻烦 
          mov bl,80                       
          div bl
-         mul bl
+         mul bl                 ;ax = bl * al，在ax中得到当前行行首的光标值，早期窗口大小时25*80，从0->25*80-1即0->1999
          mov bx,ax
          jmp .set_cursor
 
@@ -76,17 +76,17 @@ put_char:                                ;显示一个字符
          jnz .put_other                  ;不是，那就正常显示字符 
          add bx,80
          jmp .roll_screen
-
+        ;屏幕可同时显示2000个字符。光标占1个字节，整个屏幕只有1个光标。一个字符在显存占俩字节
  .put_other:                             ;正常显示字符
          mov ax,0xb800
          mov es,ax
-         shl bx,1
+         shl bx,1          ;得到该位置字符在显存中的偏移地址
          mov [es:bx],cl
 
          ;以下将光标位置推进一个字符
          shr bx,1
          add bx,1
-
+        ;屏幕只能显示25*80即2000个字符,0-1999，如果BX大于等于2000需要滚屏，即将2~25行向上提1行
  .roll_screen:
          cmp bx,2000                     ;光标超出屏幕？滚屏，即将2~25行内容整体向上提1行，用黑底白字空白字符填充25行。
          jl .set_cursor                 ;光标未超出屏幕，即bx小于2000
@@ -95,7 +95,7 @@ put_char:                                ;显示一个字符
          mov ds,ax
          mov es,ax
          cld
-         mov si,0xa0
+         mov si,0xa0            ;第2行第1列
          mov di,0x00
          mov cx,1920
          rep movsw
@@ -110,13 +110,13 @@ put_char:                                ;显示一个字符
 
  .set_cursor:           ;新的光标位置写入光标寄存器
          mov dx,0x3d4
-         mov al,0x0e
+         mov al,0x0e      ;0x0e，       向0x3d4中写入0x0e，然后将bx高8位通过0x3d5写入
          out dx,al
          mov dx,0x3d5
          mov al,bh
          out dx,al
          mov dx,0x3d4
-         mov al,0x0f
+         mov al,0x0f      ;0x0f，       向0x3d4中写入0x0f,将bx低8位通过0x3d5写入
          out dx,al
          mov dx,0x3d5
          mov al,bl
@@ -133,20 +133,20 @@ put_char:                                ;显示一个字符
 
 ;-------------------------------------------------------------------------------
   start:
-         ;初始执行时，DS和ES指向用户程序头部段
+         ;初始执行时，DS和ES指向用户程序头部段(在引导程序中设置的)
          mov ax,[stack_segment]           ;设置到用户程序自己的堆栈 
          mov ss,ax
          mov sp,stack_end  ;等价于mov sp, 256，因为stack_end段定义了vstart=0，所以stack_end汇编地址为256
          
          mov ax,[data_1_segment]          ;设置到用户程序自己的数据段
-         mov ds,ax
+         mov ds,ax                      ;修改ds，从此处开始ds不再指向程序头部段
 
          mov bx,msg0
          call put_string                  ;显示第一段信息 
 
-         push word [es:code_2_segment]  ;es一直指向用户程序头部段，这在加载程序中定义了从未更改过
-         mov ax,begin
-         push ax                          ;可以直接push begin,80386+
+         push word [es:code_2_segment]  ;es一直指向用户程序头部段，这在加载程序中定义了从未更改过，压入code_2段地址
+         mov ax,begin           ;begin是相对于code_2_segment段的偏移地址
+         push ax                          ;可以直接push begin,80386+    压入偏移地址
          
          retf                             ;转移到代码段2执行 
          
@@ -163,9 +163,9 @@ put_char:                                ;显示一个字符
 SECTION code_2 align=16 vstart=0          ;定义代码段2（16字节对齐）
 
   begin:
-         push word [es:code_1_segment]
+         push word [es:code_1_segment]  ;压入code_1的段地址
          mov ax,continue
-         push ax                          ;可以直接push continue,80386+
+         push ax                          ;可以直接push continue,80386+   压入continue的汇编地址
          
          retf                             ;转移到代码段1接着执行 
          
@@ -202,8 +202,8 @@ SECTION stack align=16 vstart=0
            
          resb 256       ;伪指令resb用来保留256字节的栈空间。
 
-stack_end:  
+stack_end:  ;此处汇编地址为256
 
 ;===============================================================================
-SECTION trail align=16
-program_end:
+SECTION trail align=16          ;没有vstart，表示计算汇编地址从程序开头计算
+program_end:            ;表示程序的大小

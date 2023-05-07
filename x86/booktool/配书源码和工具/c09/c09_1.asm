@@ -32,13 +32,13 @@ new_int_0x70:
       push es
       
   .w0:                                    
-      mov al,0x0a                        ;阻断NMI。当然，通常是不必要的
-      or al,0x80                          
+      mov al,0x0a                        
+      or al,0x80                          ;0x70的最高位为1表示阻断NMI。阻断NMI。当然，通常是不必要的 屏蔽所有可屏蔽中断
       out 0x70,al
       in al,0x71                         ;读寄存器A
       test al,0x80                       ;测试第7位UIP 
       jnz .w0                            ;以上代码对于更新周期结束中断来说 ,ZF如果为0继续循环
-                                         ;是不必要的 
+                                         ;是不必要的 因为当前中断发生时，更新周期刚结束。
       xor al,al                 ;0号寄存器
       or al,0x80
       out 0x70,al
@@ -129,31 +129,31 @@ start:
       mov bx,inst_msg                    ;显示安装信息 
       call put_string
       
-      mov al,0x70
-      mov bl,4
-      mul bl                             ;计算0x70号中断在IVT中的偏移
+      mov al,0x70              ;中断号0x70存入al
+      mov bl,4                  
+      mul bl                             ;中断号乘4,计算0x70号中断在IVT（中断向量表）中的偏移
       mov bx,ax                          
 
-      cli                                ;防止改动期间发生新的0x70号中断
+      cli                                ;屏蔽可屏蔽中断，防止改动期间发生新的0x70号中断
 
       push es
-      mov ax,0x0000
+      mov ax,0x0000             ;在实模式中，中断向量表占据0x0000-0x3fff共1024个字节，一个表项占4字节，共256个
       mov es,ax                 ;使es指向中断向量表起始地址。
-      mov word [es:bx],new_int_0x70      ;偏移地址。
+      mov word [es:bx],new_int_0x70      ;偏移地址。   将new_int_0x70存入中断向量表，发生0x70号中断就会跳转到此处。
                                           
       mov word [es:bx+2],cs              ;段地址
       pop es
 
       mov al,0x0b                        ;RTC寄存器B
-      or al,0x80                         ;阻断NMI（第7位为1） 
-      out 0x70,al
-      mov al,0x12                        ;设置寄存器B，禁止周期性中断，开放更 
+      or al,0x80                         ;阻断NMI（第7位为1），即NMI（可屏蔽中断）都被屏蔽。 
+      out 0x70,al               ;0x70和0x74是索引端口，指定CMOS RAM内的单元，0x71或0x75是数据端口
+      mov al,0x12                        ;设置寄存器B，禁止周期性中断，开放更   0001_0010
       out 0x71,al                        ;新结束后中断，BCD码，24小时制 
 
       mov al,0x0c
       out 0x70,al                        ;向0x70写入要读的寄存器号同时打开NMI（第7位为0）
-      in al,0x71                         ;读RTC寄存器C，复位未决的中断状态
-
+      in al,0x71                         ;读RTC寄存器C，复位未决的中断状态，读TRC寄存器C，会清空其内容，如果其内容不清空，同样的中断将不能再次产生。
+                ;主片端口是0x20和0x21，从片端口是0xa0和0xa1
       in al,0xa1                         ;读8259从片的IMR寄存器，默认情况8259不允许RTC中断 
       and al,0xfe                        ;清除bit 0(此位连接RTC)
       out 0xa1,al                        ;写回此寄存器 
@@ -172,7 +172,7 @@ start:
        
  .idle:
       hlt                                ;使CPU进入低功耗状态，直到用中断唤醒
-      not byte [12*160 + 33*2+1]         ;反转显示属性 
+      not byte [1 2*160 + 33*2+1]        ;反转显示属性 
       jmp .idle
 
 ;-------------------------------------------------------------------------------

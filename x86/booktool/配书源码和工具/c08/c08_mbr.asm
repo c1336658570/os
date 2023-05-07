@@ -21,16 +21,16 @@ SECTION mbr align=16 vstart=0x7c00       ;主引导扇区定义为1个段,加上
          mov es,ax                        
     
          ;以下读取程序的起始部分 
-         xor di,di                       ;逻辑扇区号的高12位
+         xor di,di                       ;逻辑扇区号的高12位      逻辑扇区采用LBA28，共28位
          mov si,app_lba_start            ;程序在硬盘上的起始逻辑扇区号，逻辑扇区号低16位 
          xor bx,bx                       ;加载到DS:0x0000处 
          call read_hard_disk_0
       
          ;以下判断整个程序有多大
-         mov dx,[2]                      ;曾经把dx写成了ds，花了二十分钟排错 
-         mov ax,[0]
+         mov dx,[2]                      ;曾经把dx写成了ds，花了二十分钟排错 高2字节
+         mov ax,[0]                ;低2字节
          mov bx,512                      ;512字节每扇区
-         div bx
+         div bx                     ;除512在ax中计算出总扇区数量
          cmp dx,0
          jnz @1                          ;未除尽，因此结果比实际扇区数少1 
          dec ax                          ;已经读了一个扇区，扇区总数减1 
@@ -42,7 +42,7 @@ SECTION mbr align=16 vstart=0x7c00       ;主引导扇区定义为1个段,加上
          push ds                         ;以下要用到并改变DS寄存器（重新构造逻辑段），一个逻辑段最大64K，当用户程序特别大时一个逻辑段存不下，bx从0x0000到0xffff用完之后，又会重新回到0x0000覆盖掉以前的内容。 
 
          mov cx,ax                       ;循环次数（剩余扇区数）
-   @2:
+   @2:   ;一个逻辑扇区的大小是512(0x200)个字节，通过将其除16算出需要增加的段地址为0x20，通过加0x20获得下一个段逻辑地址，不这么做的话ds永远不变，偏移只能在0x0000-0xffff之间循环
          mov ax,ds
          add ax,0x20                     ;得到下一个以512字节为边界的段地址
          mov ds,ax  
@@ -56,9 +56,9 @@ SECTION mbr align=16 vstart=0x7c00       ;主引导扇区定义为1个段,加上
       
          ;计算入口点代码段基址 
    direct:
-         mov dx,[0x08]
-         mov ax,[0x06]
-         call calc_segment_base
+         mov dx,[0x08]        ;读用户程序入口段地址高2字节
+         mov ax,[0x06]        ;读用户程序入口段地址低2字节
+         call calc_segment_base     ;将其进行重定位
          mov [0x06],ax                   ;回填修正后的入口点代码段基址 
       
          ;开始处理段重定位表
@@ -67,13 +67,13 @@ SECTION mbr align=16 vstart=0x7c00       ;主引导扇区定义为1个段,加上
           
  realloc:
          mov dx,[bx+0x02]                ;32位地址的高16位 
-         mov ax,[bx]
+         mov ax,[bx]                     ;低16位
          call calc_segment_base
          mov [bx],ax                     ;回填段的基址
          add bx,4                        ;下一个重定位项（每项占4个字节） 
          loop realloc 
       
-         jmp far [0x04]                  ;转移到用户程序  
+         jmp far [0x04]                  ;转移到用户程序，间接绝对远转移，低字是(0x04)偏移地址，高字(0x06)是段地址  
  
 ;-------------------------------------------------------------------------------
 read_hard_disk_0:                        ;从硬盘读取一个逻辑扇区
@@ -101,22 +101,22 @@ read_hard_disk_0:                        ;从硬盘读取一个逻辑扇区
          out dx,al                       ;LBA地址23~16
          ;向硬盘接口写入27~24位和工作模式（LBA）
          inc dx                          ;0x1f6
-         mov al,0xe0                     ;LBA28模式，主盘
+         mov al,0xe0                     ;LBA28模式，主盘，27-25位111表示LBA模式，24位为0表示读主硬盘，为1表示读从硬盘
          or al,ah                        ;LBA地址27~24
          out dx,al
          ;向硬盘接口发送读命令
-         inc dx                          ;0x1f7
-         mov al,0x20                     ;读命令
+         inc dx                          ;0x1f7，命令端口
+         mov al,0x20                     ;读命令，0x20为读，0x30为写
          out dx,al
 
   .waits:
          in al,dx
-         and al,0x88
+         and al,0x88          ;端口0x1f7既是命令端口，又是状态端口。0x1f7端口第七位置1，表示自己忙。一旦硬盘准备就绪，此位清零。第三位置1表示自己准备好了，请求主机发送或者接收数据。
          cmp al,0x08
          jnz .waits                      ;不忙，且硬盘已准备好数据传输 
          
          mov cx,256                      ;总共要读取的字数
-         mov dx,0x1f0         ;0x1f0为16位的端口
+         mov dx,0x1f0         ;0x1f0为16位的端口，硬盘接口的数据端口
   .readw:
          in ax,dx
          mov [bx],ax          ;将读出来的数据放到ds指向的数据段，起始偏移地址在bx中。
