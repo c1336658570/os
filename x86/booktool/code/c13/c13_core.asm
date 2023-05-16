@@ -190,7 +190,7 @@ read_hard_disk_0:                           ;从硬盘读取一个逻辑扇区
          mov [ebx],ax
          add ebx,2
          loop .readw
-
+       ;每次返回ebx+512
          pop edx
          pop ecx
          pop eax
@@ -514,7 +514,7 @@ load_relocate_program:                      ;加载并重定位用户程序
          pop ecx
          loop .b2
 
-         mov ax,[es:0x04]   ;517 行，把用户程序头部段的选择子传送到AX寄存器。
+         mov ax,[es:0x04]   ;517行，把用户程序头部段的选择子传送到AX寄存器。
 
          pop es                             ;恢复到调用此过程前的es段 
          pop ds                             ;恢复到调用此过程前的ds段
