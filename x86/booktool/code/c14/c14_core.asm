@@ -530,7 +530,7 @@ load_relocate_program:                      ;加载并重定位用户程序
          ;安装头部段描述符到LDT中 
          mov ebx,esi                        ;TCB的基地址
          call fill_descriptor_in_ldt  ;421行，把刚才创建的描述符安装到LDT中
-       ;在cx中返回选择子，但是返回的选择子的最后两位为0,表明特权级为0
+       ;在cx中返回选择子，但是返回的选择子的最后两位为0,表明请求特权级为0，所以需要修改请求特权级为3
          or cx,0000_0000_0000_0011B         ;设置选择子的特权级为3 设置RPL（请求特权级）
          mov [es:esi+0x44],cx               ;登记程序头部段选择子到TCB 
          mov [edi+0x04],cx                  ;和头部内 将头部段选择子填到用户程序头部 
@@ -543,7 +543,7 @@ load_relocate_program:                      ;加载并重定位用户程序
          mov ecx,0x0040f800                 ;字节粒度的代码段描述符，特权级3
          call sys_routine_seg_sel:make_seg_descriptor
          mov ebx,esi                        ;TCB的基地址
-         call fill_descriptor_in_ldt ;在cx中返回选择子，但是返回的选择子的最后两位为0,表明特权级为0
+         call fill_descriptor_in_ldt ;在cx中返回选择子，但是返回的选择子的最后两位为0,表明请求特权级为0，所以需要修改请求特权级为3
          or cx,0000_0000_0000_0011B         ;设置选择子的特权级为3 设置RPL（请求特权级）
          mov [edi+0x14],cx                  ;登记代码段选择子到头部  将代码段选择子填到用户程序头部 
 
@@ -555,7 +555,7 @@ load_relocate_program:                      ;加载并重定位用户程序
          mov ecx,0x0040f200                 ;字节粒度的数据段描述符，特权级3
          call sys_routine_seg_sel:make_seg_descriptor
          mov ebx,esi                        ;TCB的基地址
-         call fill_descriptor_in_ldt ;在cx中返回选择子，但是返回的选择子的最后两位为0,表明特权级为0
+         call fill_descriptor_in_ldt ;在cx中返回选择子，但是返回的选择子的最后两位为0,表明请求特权级为0，所以需要修改请求特权级为3
          or cx,0000_0000_0000_0011B         ;设置选择子的特权级为3  设置RPL（请求特权级）
          mov [edi+0x1c],cx                  ;登记数据段选择子到头部 将数据段选择子填到用户程序头部
 
@@ -571,7 +571,7 @@ load_relocate_program:                      ;加载并重定位用户程序
          mov ecx,0x00c0f600                 ;字节粒度的堆栈段描述符，特权级3
          call sys_routine_seg_sel:make_seg_descriptor
          mov ebx,esi                        ;TCB的基地址
-         call fill_descriptor_in_ldt
+         call fill_descriptor_in_ldt ;在cx中返回选择子，但是返回的选择子的最后两位为0,表明请求特权级为0，所以需要修改请求特权级为3
          or cx,0000_0000_0000_0011B         ;设置选择子的特权级为3 设置RPL（请求特权级）
          mov [edi+0x08],cx                  ;登记堆栈段选择子到头部 将堆栈段选择子填到用户程序头部 
 
@@ -596,7 +596,7 @@ load_relocate_program:                      ;加载并重定位用户程序
          push edi
          push esi
          push ecx
-
+;当初，在创建这些调用门时，选择子的RPL字段是0。当它们被复制到U-SALT中时，应当改为用户程序的特权级（3）。
          mov ecx,64                         ;检索表中，每条目的比较次数 
          repe cmpsd                         ;每次比较4字节 ESI和EDI每次都会+4
          jnz .b4            ;不等于0就跳到b4准备开始下次循环
@@ -633,8 +633,8 @@ load_relocate_program:                      ;加载并重定位用户程序
          mov ecx,0x00c09600                 ;4KB粒度，读写，特权级0
          call sys_routine_seg_sel:make_seg_descriptor   ;309行 创建描述符 返回edx:eax
          mov ebx,esi                        ;TCB的基地址 -> ebx
-         call fill_descriptor_in_ldt      ;将其加载到ldt中，ebx存TCB基地址，edx:eax存描述符
-         ;or cx,0000_0000_0000_0000          ;设置选择子的特权级为0
+         call fill_descriptor_in_ldt      ;将其加载到ldt中，ebx存TCB基地址，edx:eax存描述符，cx返回段选择子，返回的选择子的RPL为0
+         ;or cx,0000_0000_0000_0000          ;设置选择子的特权级为0 上面那个函数返回的选择子本来就是RPL为0的
          mov [es:esi+0x22],cx               ;登记0特权级堆栈选择子到TCB 0x22-0x23保存0特权级栈选择子
          mov dword [es:esi+0x24],0          ;登记0特权级堆栈初始ESP到TCB 0x24-0x27存0特权级初始esp
       
@@ -648,10 +648,10 @@ load_relocate_program:                      ;加载并重定位用户程序
          mov [es:esi+0x2c],eax              ;登记1特权级堆栈基地址到TCB 0x2c-0x2f保存1特权级堆栈基地址
          mov ebx,0xffffe                    ;段长度（界限）
          mov ecx,0x00c0b600                 ;4KB粒度，读写，特权级1
-         call sys_routine_seg_sel:make_seg_descriptor
+         call sys_routine_seg_sel:make_seg_descriptor   ;309行 创建描述符 返回edx:eax
          mov ebx,esi                        ;TCB的基地址 -> ebx
-         call fill_descriptor_in_ldt      ;将其加载到ldt中，ebx存TCB基地址，edx:eax存描述符
-         or cx,0000_0000_0000_0001          ;设置选择子的特权级为1
+         call fill_descriptor_in_ldt      ;将其加载到ldt中，ebx存TCB基地址，edx:eax存描述符，cx返回段选择子，返回的选择子的RPL为0
+         or cx,0000_0000_0000_0001          ;设置选择子的特权级为1  因为这个栈是从低特权级切换到1特权级时使用的栈，所以DPL为1
          mov [es:esi+0x30],cx               ;登记1特权级堆栈选择子到TCB 0x30-0x31保存1特权级栈选择子
          mov dword [es:esi+0x32],0          ;登记1特权级堆栈初始ESP到TCB 0x32-0x35存1特权级初始esp
 
@@ -665,10 +665,10 @@ load_relocate_program:                      ;加载并重定位用户程序
          mov [es:esi+0x3a],eax ;原书此处为ecx ;登记2特权级堆栈基地址到TCB 0x3a-0x3d保存2特权级堆栈基地址
          mov ebx,0xffffe                    ;段长度（界限）
          mov ecx,0x00c0d600                 ;4KB粒度，读写，特权级2
-         call sys_routine_seg_sel:make_seg_descriptor
+         call sys_routine_seg_sel:make_seg_descriptor   ;309行 创建描述符 返回edx:eax
          mov ebx,esi                        ;TCB的基地址 -> ebx
-         call fill_descriptor_in_ldt      ;将其加载到ldt中，ebx存TCB基地址，edx:eax存描述符
-         or cx,0000_0000_0000_0010          ;设置选择子的特权级为2
+         call fill_descriptor_in_ldt      ;将其加载到ldt中，ebx存TCB基地址，edx:eax存描述符，cx返回段选择子，返回的选择子的RPL为0
+         or cx,0000_0000_0000_0010          ;设置选择子的特权级为2  因为这个栈是从低特权级切换到2特权级时使用的栈，所以DPL为2
          mov [es:esi+0x3e],cx               ;登记2特权级堆栈选择子到TCB 0x3e-0x3f保存2特权级栈选择子
          mov dword [es:esi+0x40],0          ;登记2特权级堆栈初始ESP到TCB 0x40-0x43存2特权级初始esp
 ;处理器要求在GDT中安装每个LDT的描述符。当要使用这些LDT时，可以用它们的选择子来访问GDT，将LDT描述符加载到LDTR寄存器。
@@ -680,7 +680,7 @@ load_relocate_program:                      ;加载并重定位用户程序
          call sys_routine_seg_sel:set_up_gdt_descriptor ;264行，将LDT描述符写入GDT
          mov [es:esi+0x10],cx               ;登记LDT选择子到TCB中 0x10-0x11存LDT段选择子
 ;LDT描述符格式：低32位：0-15位为段界限0-15,16-31为段基地址0-15 高32位：0-7为段基地址16-23,8-11为TYPE，12为S，13-14为DPL，15为P，16-19为段界限16-19，20AVL，21L，22D，23G，24-31为段基地址24-31
-         ;创建用户程序的TSS
+         ;创建用户程序的TSS  和LDT一样，必须在全局描述符表（GDT）中创建每个TSS的描述符。
          mov ecx,104                        ;tss的基本尺寸
          mov [es:esi+0x12],cx      ;cx存的tss尺寸，TCB的0x12-0x13用来保存tss界限值
          dec word [es:esi+0x12]             ;登记TSS界限值到TCB 
@@ -710,10 +710,10 @@ load_relocate_program:                      ;加载并重定位用户程序
 
          mov dx,[es:esi+0x10]               ;登记任务的LDT选择子  从TCB中取出LDT选择子
          mov [es:ecx+96],dx                 ;到TSS中
-       ;在这里，填写的是TSS段界限（103），这意味着不存在该区域。 
+;714、715 行，填写I/O许可位映射区的地址。在这里，填写的是TSS段界限（103），这意味着不存在该区域。
          mov dx,[es:esi+0x12]               ;登记任务的I/O位图偏移  从TCB中取出TSS界限值
          mov [es:ecx+102],dx                ;到TSS中  
-      
+;在TSS内偏移为102的那个字单元，保存着I/O许可位串（I/O许可位映射区）的起始位置。如果该字单元的内容大于或者等于TSS的段界限（在TSS 描述符中），则表明没有I/O许可位串    
          mov word [es:ecx+100],0            ;T=0
        
          ;在GDT中登记TSS描述符 一方面是为了对TSS进行段和特权级的检查；另一方面，也是执行任务切换的需要。
@@ -721,7 +721,7 @@ load_relocate_program:                      ;加载并重定位用户程序
          movzx ebx,word [es:esi+0x12]       ;段长度（界限）      从TCB中获得
          mov ecx,0x00408900                 ;TSS描述符，特权级0
          call sys_routine_seg_sel:make_seg_descriptor   ;创建TSS描述符
-         call sys_routine_seg_sel:set_up_gdt_descriptor ;安装到GDT上，cx返回段选择子
+         call sys_routine_seg_sel:set_up_gdt_descriptor ;安装到GDT上，cx返回段选择子，RPL为0
          mov [es:esi+0x18],cx               ;登记TSS选择子到TCB
 ;TSS描述符格式：低32位：0-15位为段界限0-15,16-31为段基地址0-15 高32位：0-7为段基地址16-23,8-11为TYPE，12为S，13-14为DPL，15为P，16-19为段界限16-19，20AVL，21L，22D，23G，24-31为段基地址24-31
          pop es                             ;恢复到调用此过程前的es段 
@@ -819,7 +819,7 @@ start:
 ;CX存调用门属性P，DPL，0，TYPE,000，参数个数0~4位;允许访问)，0个参数(因为用寄存器
 ;3个参数，eax，bx和cx，TYPE1100表示调用门       ;传递参数，而没有用栈) 
          call sys_routine_seg_sel:make_gate_descriptor  ;331行，构造调用门描述符
-         call sys_routine_seg_sel:set_up_gdt_descriptor ;创建调用门描述符 264行
+         call sys_routine_seg_sel:set_up_gdt_descriptor ;创建调用门描述符 返回调用门描述符选择子，RPL为0 264行
          mov [edi+260],cx                   ;将返回的门描述符选择子回填  覆盖原先的代码段选择子
          add edi,salt_item_len              ;指向下一个C-SALT条目 
          pop ecx
@@ -850,8 +850,8 @@ start:
        ;加载任务寄存器TR和局部描述符表寄存器（LDTR）。  ltr r/m16     lldt r/m16
          ltr [ecx+0x18]                     ;加载任务状态选择子到TR  从TCB取得起始地址
          lldt [ecx+0x10]                    ;加载LDT选择子到ldtr    从TCB取得起始地址
-       ;TR和LDTR格式：32位线性基地址+段界限+段属性
-         mov eax,[ecx+0x44] ;访问任务的TCB，从中取出用户程序头部段选择子，并传送到段寄存器DS
+       ;TR和LDTR格式：16位段选择子+高速缓存（32位线性基地址+段界限+段属性）
+         mov eax,[ecx+0x44] ;访问任务的TCB，从中取出用户程序头部段选择子，并传送到段寄存器DS，该段选择子RPL=3，TI=1
          mov ds,eax                         ;切换到用户程序头部段 
 ;858～862 行，从用户程序头部内取出栈段选择子和栈指针，以及代码段选择子和入口点，并将它们顺序压入当前的0特权级栈中
          ;以下假装是从调用门返回。摹仿处理器压入返回参数 
