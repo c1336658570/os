@@ -54,8 +54,8 @@ data_end:
 ;===============================================================================
 SECTION code vstart=0
 start:
-         mov eax,ds     ;ds指向用户程序头部，将其传送到eax中
-         mov fs,eax     ;让fs保存用户程序头部
+         mov eax,ds     ;ds指向用户程序头部（在内核代码代码段的start中设置的），将其传送到eax中
+         mov fs,eax     ;让fs保存用户程序头部，因为后面要调用内核过程，而这些过程都要求使用DS，所以要把DS解放出来。
       ;切换到用户程序自己的栈，并初始化栈指针寄存器ESP的内容为0。
          mov eax,[stack_seg]
          mov ss,eax

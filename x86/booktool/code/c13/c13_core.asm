@@ -16,16 +16,16 @@
          core_length      dd core_end       ;核心程序总长度#00
 
          sys_routine_seg  dd section.sys_routine.start
-                                            ;系统公用例程段位置#04
+                                            ;系统公用例程段位置#04    公用例程段的起始汇编地址
 
          core_data_seg    dd section.core_data.start
-                                            ;核心数据段位置#08
+                                            ;核心数据段位置#08        核心数据段的起始汇编地址
 
          core_code_seg    dd section.core_code.start
-                                            ;核心代码段位置#0c
+                                            ;核心代码段位置#0c        核心代码段的起始汇编地址
 
 
-         core_entry       dd start          ;核心代码段入口点#10      段内偏移，将来会传送到指令指针寄存器EIP
+         core_entry       dd start          ;核心代码段入口点#10      段内偏移，将来会传送到指令指针寄存器EIP   来自一个标号start，位于第531行
                           dw core_code_seg_sel   ;指定一个内存代码段的选择子（第7行定义）
 
 ;===============================================================================
@@ -288,7 +288,7 @@ set_up_gdt_descriptor:                      ;在GDT内安装一个新的描述�
          add word [pgdt],8                  ;增加一个描述符的大小   
       
          lgdt [pgdt]                        ;对GDT的更改生效 
-       ;第292～297行，根据GDT的新界限值，来生成相应的段选择子
+       ;第292～297行，根据GDT的新界限值，来生成相应的段选择子  取得GDT 的当前界限值，除以8，余数丢弃。描述符的索引是从0 开始编号的，界限值总是比GDT的总字节数小1。因此，界限值除以8，一定会有余数（余7，丢弃不用），商就是我们所要得到的描述符索引号。最后，将索引号左移3 次，留出TI 位和RPL 位（TI＝0，指向GDT，RPL＝00），这就是要生成的选择子。
          mov ax,[pgdt]                      ;得到GDT界限值
          xor dx,dx
          mov bx,8
@@ -461,17 +461,17 @@ load_relocate_program:                      ;加载并重定位用户程序
 
          ;建立程序堆栈段描述符
          mov ecx,[edi+0x0c]                 ;4KB的倍率  从用户程序头部偏移为0x0C的地方获得一个建议的栈大小
-         mov ebx,0x000fffff ;计算栈段的界限。如果栈段的粒度是4KB，那么，用0xFFFFF减去倍率，就是用来创建描述符的段界限。
+         mov ebx,0x000fffff ;计算栈段的界限。如果栈段的粒度是4KB，那么，用0xFFFFF减去倍率，就是用来创建描述符的段界限。举例来说，如果用户程序建议的倍率是2，那么，这意味着他想创建的栈空间为8KB。因此，段的界限值为:0xFFFFF-2=0XFFFFD，当处理器访问该段时，实际段界限为0xFFFFD*0X1000+0XFFF=0XFFFFDEFF
          sub ebx,ecx                        ;得到段界限
          mov eax,4096       ;第466～469行，用4096（4KB）乘以倍率，得到所需要的栈大小
-         mul dword [edi+0x0c]                         
+         mul dword [edi+0x0c]             ;用4096（4KB）(在eax中保存)乘以倍率  这是一个32 位的无符号数乘法，指令格式为mul r/m32
          mov ecx,eax                        ;准备为堆栈分配内存       ecx保存要分配的大小
          call sys_routine_seg_sel:allocate_memory       ;ecx中返回分配的起始地址（低地址），栈是向下增长，所以栈起始地址需要加上栈的大小
          add eax,ecx                        ;得到堆栈的高端物理地址 
-         mov ecx,0x00c09600                 ;4KB粒度的堆栈段描述符
+         mov ecx,0x00c09600                 ;4KB粒度的堆栈段描述符，得到所需要的栈大小，然后，用这个值去申请内存。
          call sys_routine_seg_sel:make_seg_descriptor   ;308行定义，用来构造段描述符，返回后EDX：EAX包含64位段描述符
          call sys_routine_seg_sel:set_up_gdt_descriptor ;263行定义，通过EDX:EAX传入描述符作为唯一的参数。该过程返回时，CX寄存器中包含了那个描述符的选择子。
-         mov [edi+0x08],cx         ;cx为set_up_gdt_descriptor的返回值，保存的段选择子
+         mov [edi+0x08],cx         ;cx为set_up_gdt_descriptor的返回值，保存的段选择子      将栈段的选择子写回到用户程序头部，供用户程序在接管处理器控制权之后使用。
        ;内核的SALT表位于338-357行
          ;重定位SALT        用DS:ESI指向C-SALT，用ES:EDI指向U-SALT。
          mov eax,[edi+0x04]        ;程序头部的段选择子给eax
@@ -487,7 +487,7 @@ load_relocate_program:                      ;加载并重定位用户程序
          push ecx    ;内循环需要使用ecx和edi所以先压栈。487-489，512-515是外循环
          push edi    ;外循环的任务是从U-SALT中依次取出表项
       
-         mov ecx,salt_items ;定义于360，即C-SALT条目的个数。重置循环次数，即C-SALT条目的个数
+         mov ecx,salt_items ;定义于360，即C-SALT条目的个数。每次从外循环进入内循环时，都要重新设置比对次数，即C-SALT条目的个数
          mov esi,salt       ;重新使ESI寄存器指向C-SALT的开始处
   .b3:
          push edi
@@ -574,7 +574,7 @@ start:
       
          mov [esp_pointer],esp               ;临时保存堆栈指针 定义于378行
        
-         mov ds,ax   ;使段寄存器DS指向用户程序头部      ax在load_relocate_program中被修改为用户程序头部的段选择子
+         mov ds,ax   ;使段寄存器DS指向用户程序头部      ax在load_relocate_program函数结尾被修改为用户程序头部的段选择子
       
          jmp far [0x10]                      ;控制权交给用户程序（入口点）
                                              ;堆栈可能切换 
