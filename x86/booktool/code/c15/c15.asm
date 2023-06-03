@@ -55,23 +55,23 @@ SECTION code vstart=0
 start:
          ;任务启动时，DS指向头部段，也不需要设置堆栈 
          mov eax,ds
-         mov fs,eax
-     
+         mov fs,eax     ;令段寄存器FS指向头部段。其主要目的是保存指向头部段的指针以备后用，同时，腾出段寄存器DS来完成后续操作
+;令段寄存器DS指向当前任务自己的数据段。
          mov eax,[data_seg]
          mov ds,eax
-     
+;显示一些信息
          mov ebx,message_1
          call far [fs:PrintString]
          
          mov ax,cs
-         and al,0000_0011B
-         or al,0x0030
-         mov [message_2],al
-         
+         and al,0000_0011B    ;数字3
+         or al,0x0030         ;等于+30，将3转为ASCII的3。
+         mov [message_2],al   ;然后将其写入到message_2的第一个字节
+;显示message_2的一些信息
          mov ebx,message_2
          call far [fs:PrintString]
-     
-         call far [fs:TerminateProgram]      ;退出，并将控制权返回到核心 
+;第74行，通过调用门转到全局空间执行。
+         call far [fs:TerminateProgram]      ;退出，并将控制权返回到核心 跳到内核的354行
     
 code_end:
 
