@@ -277,7 +277,7 @@ set_up_gdt_descriptor:                      ;在GDT内安装一个新的描述�
          sgdt [pgdt]                        ;以便开始处理GDT
 
          mov ebx,mem_0_4_gb_seg_sel
-         mov es,ebx
+         mov es,ebx                ;让es指向整个0~4G的数据段，为了访问GDT
 
          movzx ebx,word [pgdt]              ;GDT界限
          inc bx                             ;GDT总字节数，也是下一个描述符偏移
@@ -312,18 +312,18 @@ make_seg_descriptor:                        ;构造存储器和系统的段描�
                                             ;      ECX=属性。各属性位都在原始
                                             ;          位置，无关的位清零 
                                             ;返回：EDX:EAX=描述符
-         mov edx,eax
-         shl eax,16
-         or ax,bx                           ;描述符前32位(EAX)构造完毕
+         mov edx,eax ;201->203行构造描述符的低32位。高16位为段基地址的15-0位，低16位为段界限的15-0位
+         shl eax,16                     
+         or ax,bx                        ;描述符前32位(EAX)构造完毕
+;段描述符高32位布局，31-24为段基址的31-24，23-20为权限，19-16为段界限的19-16位，15-8为权限，7-0为段基地址的23-16位。
+         and edx,0xffff0000              ;清除基地址中无关的位   清除基地址低16位，因为基地址低16位已经构造过了
+         rol edx,8   ;循环左移8位，现在31-24位为段基地址的23-16位，7-0位为段基地址的31-24位，段描述符的31-24为段基址的31-24，7-0为段基地址的23-16位，与此正好相反
+         bswap edx                       ;装配基址的31~24和23~16  (80486+)   交换第1字节和第4字节，交换第2字节和第3字节
 
-         and edx,0xffff0000                 ;清除基地址中无关的位
-         rol edx,8
-         bswap edx                          ;装配基址的31~24和23~16  (80486+)
+         xor bx,bx   ;这里是假设EBX寄存器的高12位为全零，所以用了xor bx，bx指令。实际上，安全的做法是使用指令and ebx,0x000f0000
+         or edx,ebx                      ;装配段界限的高4位
 
-         xor bx,bx
-         or edx,ebx                         ;装配段界限的高4位
-
-         or edx,ecx                         ;装配属性
+         or edx,ecx                      ;装配属性 
 
          retf
 
@@ -336,11 +336,11 @@ make_gate_descriptor:                       ;构造门的描述符（调用门�
                                             ;返回：EDX:EAX=完整的描述符
          push ebx
          push ecx
-      
-         mov edx,eax
+       ;构造调用门的高32位  15~0，属性，31~16，目标例呈的段内偏移的31~16
+         mov edx,eax        ;复制32位偏移地址
          and edx,0xffff0000                 ;得到偏移地址高16位 
          or dx,cx                           ;组装属性部分到EDX
-       
+       ;构造调用门的低32位  15~0，段内偏移15~0，31~16,例呈所在代码段选择子
          and eax,0x0000ffff                 ;得到偏移地址低16位 
          shl ebx,16                          
          or eax,ebx                         ;组装段选择子部分
@@ -348,7 +348,7 @@ make_gate_descriptor:                       ;构造门的描述符（调用门�
          pop ecx
          pop ebx
       
-         retf                                   
+         retf               ;使得控制返回调用者，该过程必须以远调用的方式使用。                                  
 
 ;该过程用来结束当前任务的执行，并转换到其他任务。不要忘了，我们现在仍处在用户任务中，要结束当前的用户任务，可以先切换到程序管理器任务，然后回收用户程序所占用的内存空间，并保证不再转换到该任务。为了切换到程序管理器任务，需要根据当前任务EFLAGS寄存器的NT位决定是采用iret指令，还是jmp指令。
 terminate_current_task:                     ;终止当前任务
@@ -360,7 +360,7 @@ terminate_current_task:                     ;终止当前任务
          add esp,4                          ;恢复堆栈指针      将ESP寄存器的内容加上4，使栈平衡，保持压入EFLAGS寄存器前的状态。
 
          mov eax,core_data_seg_sel
-         mov ds,eax
+         mov ds,eax  ;令段寄存器DS指向内核数据段，以方便后面的操作。
 ;DX寄存器包含了标志寄存器EFLAGS的低16位，其中，位14是NT位。第365、366行，测试DX寄存器的位14，看NT标志位是0还是1，以决定采用哪种方式（iret或者call）回到程序管理器任务。
          test dx,0100_0000_0000_0000B       ;测试NT位
          jnz .b1                            ;当前任务是嵌套的，到.b1执行iretd 
@@ -372,7 +372,7 @@ terminate_current_task:                     ;终止当前任务
          mov ebx,core_msg0  ;448行，是在内核数据段，用标号core_msg0声明并初始化的。
          call sys_routine_seg_sel:put_string
          iretd  ;通过iretd指令转换到前一个任务，即程序管理器任务。执行任务切换时，当前用户任务的TSS描述符的B位被清零，EFLAGS寄存器的NT位也被清零，并被保存到它的TSS中。
-      
+;我们用的是iretd，而不是iret。实际上，这是同一条指令，机器码都是CF。在16位模式下，iret 指令的操作数默认是16 位的，要按32 位操作数执行，须加指令前缀0x66，即66 CF。为了方便，编译器创造了iretd。当在16 位模式下使用iretd 时，编译器就知道，应当加上指令前缀0x66。在32 位模式下，iret 和iretd 是相同的
 sys_routine_end:
 
 ;===============================================================================
@@ -923,9 +923,9 @@ start:   ;848->906和上一章相同，要是显示处理器品牌信息，以�
          mov eax,ecx                        ;TSS的起始线性地址
          mov ebx,103                        ;段长度（界限）
          mov ecx,0x00408900                 ;TSS描述符，特权级0
-         call sys_routine_seg_sel:make_seg_descriptor
-         call sys_routine_seg_sel:set_up_gdt_descriptor
-         mov [prgman_tss+0x04],cx           ;保存程序管理器的TSS描述符选择子 
+         call sys_routine_seg_sel:make_seg_descriptor   ;构造TSS描述符，在edx:eax中返回
+         call sys_routine_seg_sel:set_up_gdt_descriptor ;将其安装到gdt中，在cx返回段选择子
+         mov [prgman_tss+0x04],cx           ;保存程序管理器的TSS描述符选择子 第431行，声明并初始化了6字节的空间，前32位用于保存TSS的基地址，后16位则是它的选择子。
 
          ;任务寄存器TR中的内容是任务存在的标志，该内容也决定了当前任务是谁。
          ;下面的指令为当前正在执行的0特权级任务“程序管理器”后补手续（TSS）。
@@ -943,7 +943,7 @@ start:   ;848->906和上一章相同，要是显示处理器品牌信息，以�
          push ecx                           ;压入任务控制块起始线性地址 
        
          call load_relocate_program         ;加载用户程序
-;TCB的0x14-0x17保存TSS基地址，0x18-0x19保存TSS选择子，通过调用TSS选择子，切换任务。当处理器发现得到的是一个TSS选择子，就执行任务切换。和通过调用门的控制转移一样，32位偏移部分丢弃不用。  
+;TCB的0x14-0x17保存TSS基地址，0x18-0x19保存TSS选择子，通过TSS选择子，切换任务。当处理器发现得到的是一个TSS选择子，就执行任务切换。和通过调用门的控制转移一样，32位偏移部分丢弃不用。  
          call far [es:ecx+0x14]             ;执行任务切换。和上一章不同，任务切
                                             ;换时要恢复TSS内容，所以在创建任务
                                             ;时TSS要填写完整 

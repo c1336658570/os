@@ -1,7 +1,7 @@
 megs : 512
 
 #注意路径 必须是你安装的路径 别弄错了
-romimage: file=//usr/local/share/bochs/BIOS-bochs-latest
+romimage: file=/usr/local/share/bochs/BIOS-bochs-latest
 vgaromimage: file=/usr/local/share/bochs/VGABIOS-lgpl-latest
 
 boot: disk
