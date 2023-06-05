@@ -1,4 +1,4 @@
-OBJS_BIN=c13_mbr.bin c13_core.bin c13.bin diskdata.txt
+OBJS_BIN=c13_mbr.bin c15_core.bin c15.bin
 
 .PHONY:
 #image: ${OBJS_BIN} 定义了一个名为image的目标，依赖于OBJS_BIN，
@@ -8,9 +8,8 @@ image: ${OBJS_BIN}
 	dd if=/dev/zero of=c13_mbr.img bs=512 count=245760
 #c05.bin文件写入c05.img磁盘映像文件的第一个扇区。
 	dd if=c13_mbr.bin of=c13_mbr.img bs=512 count=1 conv=notrunc
-	dd if=c13_core.bin of=c13_mbr.img seek=1 bs=512 count=45 conv=notrunc
-	dd if=c13.bin of=c13_mbr.img seek=50 bs=512 count=30 conv=notrunc
-	dd if=diskdata.txt of=c13_mbr.img seek=100 bs=512 count=5 conv=notrunc
+	dd if=c15_core.bin of=c13_mbr.img seek=1 bs=512 count=48 conv=notrunc
+	dd if=c15.bin of=c13_mbr.img seek=50 bs=512 count=30 conv=notrunc
 #@-表示忽略删除过程中出现的错误。
 	@-rm -rf *.bin	
 
