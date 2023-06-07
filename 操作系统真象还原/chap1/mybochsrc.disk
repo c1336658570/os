@@ -1,0 +1,29 @@
+#设置内存为 512兆字节
+megs : 512
+
+#注意路径 必须是你安装的路径 别弄错了
+#这两行是 Bochs 配置文件中的 ROM 映像文件设置。ROM 映像文件是模拟计算机 BIOS 和 VGA BIOS 的固件，它们提供了计算机系统启动和基本输入/输出等所需的低级操作。
+#指定 Bochs 使用的 BIOS ROM 映像文件。
+romimage: file=//usr/local/share/bochs/BIOS-bochs-latest
+#指定 Bochs 使用的 VGA BIOS ROM 映像文件。
+vgaromimage: file=/usr/local/share/bochs/VGABIOS-lgpl-latest
+
+#设置从磁盘启动
+boot: disk
+
+#设置日志输出文件
+log: bochs.out
+
+#关闭鼠标支持
+mouse:enabled=0
+#设置键盘键映射
+keyboard:keymap=/usr/local/share/bochs/keymaps/x11-pc-us.map
+
+#设置 ATA 控制器 0
+ata0:enabled=1,ioaddr1=0x1f0,ioaddr2=0x3f0,irq=14
+
+#设置 GDB 调试功能，但是当前被注释掉了
+#gdbstub:enabled=1,port=1234,text_base=0,data_base=0,bss_base=0
+
+# 加载磁盘
+ata0-master: type=disk, mode=flat, path="./c05_mbr.img", cylinders=58, heads=16, spt=63
