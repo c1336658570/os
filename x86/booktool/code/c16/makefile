@@ -9,7 +9,7 @@ image: ${OBJS_BIN}
 #c05.bin文件写入c05.img磁盘映像文件的第一个扇区。
 	dd if=c13_mbr.bin of=c13_mbr.img bs=512 count=1 conv=notrunc
 	dd if=c16_core.bin of=c13_mbr.img seek=1 bs=512 count=48 conv=notrunc
-	dd if=c16.bin of=c13_mbr.img seek=50 bs=512 count=30 conv=notrunc
+	dd if=c16.bin of=c13_mbr.img seek=50 bs=512 count=300 conv=notrunc
 #@-表示忽略删除过程中出现的错误。
 	@-rm -rf *.bin	
 
