@@ -21,7 +21,7 @@
    SELECTOR_CODE equ (0x0001<<3) + TI_GDT + RPL0         ; 相当于(CODE_DESC - GDT_BASE)/8 + TI_GDT + RPL0
    SELECTOR_DATA equ (0x0002<<3) + TI_GDT + RPL0	 ; 同上
    SELECTOR_VIDEO equ (0x0003<<3) + TI_GDT + RPL0	 ; 同上 
-
+   ; (4+60)*8=512=0x200 字节
    ; total_mem_bytes用于保存内存容量,以字节为单位,此位置比较好记。
    ; 当前偏移loader.bin文件头0x200字节,loader.bin的加载地址是0x900,
    ; 故total_mem_bytes内存中的地址是0xb00.将来在内核中咱们会引用此地址
@@ -31,7 +31,7 @@
    ;以下是定义gdt的指针，前2字节是gdt界限，后4字节是gdt起始地址
    gdt_ptr  dw  GDT_LIMIT 
 	    dd  GDT_BASE
-
+   ;35～37行是提前定义的缓冲区，为的是存储BIOS 0x15中断0xe820子功能返回的ARDS结构。
    ;人工对齐:total_mem_bytes4字节+gdt_ptr6字节+ards_buf244字节+ards_nr2,共256字节（0x100）
    ards_buf times 244 db 0 ;存储 BIOS0x15中断0xe820子功能返回的ARDS结构。
    ards_nr dw 0		      ;用于记录ards结构体数量
@@ -39,7 +39,7 @@
    loader_start:
    
 ;-------  int 15h eax = 0000E820h ,edx = 534D4150h ('SMAP') 获取内存布局  -------
-;es:di存放缓冲区地址，es在mbr中已经赋值了，45行队di赋值。
+;es:di存放缓冲区地址，es在mbr中已经赋值了(0)，45行队di赋值。
    xor ebx, ebx		      ;第一次调用时，ebx值要为0
    mov edx, 0x534d4150	      ;edx只赋值一次，循环体中不会改变 固定签名，16进制数字字符串是SMAP的ASCII
    mov di, ards_buf	      ;ards结构缓冲区
@@ -49,7 +49,7 @@
    int 0x15
    jc .e820_failed_so_try_e801   ;若cf位为1则有错误发生，尝试0xe801子功能
    add di, cx		      ;使di增加20字节指向缓冲区中新的ARDS结构位置
-   inc word [ards_nr]	      ;记录ARDS数量
+   inc word [ards_nr]	      ;记录ARDS数量  每次得到一个ARDS后，便将ards_nr加1,记录ARDS的个数
    cmp ebx, 0		      ;若ebx为0且cf不为1,这说明ards全部返回，当前已是最后一个
    jnz .e820_mem_get_loop
 ;56～69行是找出最大的内存块。思路是对每一个ARDS结构中的BaseAddrLow与LengthLow相加求和，遍历完所有ARDS，值最大的则为内存容量，由于BaseAddrLow+LengthLow的单位是字节而无需转换，之后便直接跳转到.mem_get_ok，将此容量数写入变量total_mem_bytes
@@ -73,11 +73,11 @@
 ; 在ax和cx寄存器中为低16M,在bx和dx寄存器中为16MB到4G。
 .e820_failed_so_try_e801:
    mov ax,0xe801
-   int 0x15
+   int 0x15    ;cf为0代表成功，为1代表失败，ax和cx以1KB为单位，只显示低15MB内存，bx和dx以64KB为单位，显示16MB-4GB中连续的内存单位数量
    jc .e801_failed_so_try88   ;若当前e801方法失败,就尝试0x88方法
 
 ;1 先算出低15M的内存,ax和cx中是以KB为单位的内存数量,将其转换为以byte为单位
-   mov cx,0x400	     ;cx和ax值一样,cx用做乘数
+   mov cx,0x400	     ;cx和ax值一样,cx用做乘数  cx=1024
    mul cx      ;积的高16位在DX寄存器，低16位在AX寄存器
    shl edx,16  ;将EDX左移16位后再与AX做或运算便得到了完整32位的积。
    and eax,0x0000FFFF
@@ -98,7 +98,7 @@
 .e801_failed_so_try88: 
    ;int 15后，ax存入的是以kb为单位的内存容量
    mov  ah, 0x88
-   int  0x15
+   int  0x15   ;cf为0表示成功，cf为1表示出错。ax以1KB为单位大小，内存空间1MB只上的连续单位数量，不包括低端1MB内存。
    jc .error_hlt
    and eax,0x0000FFFF
       

@@ -121,13 +121,14 @@ p_mode_start:
    push ds        ;  0x1e  0x             0x8fc
    push es        ;  0x06                 0x8f8
 
-   jmp $          ;  0xebfe               0x8f4
+   jmp $          ;  0xebfe               
 
    ;将110-117替换为如下五行演示保护模式下压入通用寄存器和内存
    ;在保护模式每次压入16位数据时栈指针esp就减2，每次压入32位数据时栈指针esp就减4。
+   ;66反转操作数大小
    push ax        ;  6650                 0x900
    push eax       ;  50                   0x8fe
    push word [0x1234];66ff3534120000      0x8fa
    push dword [0x1234];ff3534120000       0x8f8
 
-   jmp $          ;ebfe                   0x8f4
+   jmp $          ;ebfe                   

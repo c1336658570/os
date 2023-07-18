@@ -90,7 +90,9 @@ rd_disk_m_16:
 
       shr eax,cl
       and al,0x0f	   ;lba第24~27位
-      or al,0xe0	   ; 设置7～4位为1110,表示lba模式
+      or al,0xe0	   ; 设置7～4位为1110,表示lba模式第 4 位用来指定通道上的主盘或从盘，0 代表主盘，1 代
+      ;表从盘。第 6 位用来设置是否启用 LBA 方式，1 代表启用 LBA 模式，0 代表启用 CHS 模式。另外的两位：
+      ;第 5 位和第 7 位是固定为 1 的，称为 MBS 位
       mov dx,0x1f6
       out dx,al
 
@@ -106,8 +108,8 @@ rd_disk_m_16:
       in al,dx
       and al,0x88	   ;第4位为1表示硬盘控制器已准备好数据传输，第7位为1表示硬盘忙
       cmp al,0x08
-      jnz .not_ready	   ;若未准备好，继续等。
-
+      jnz .not_ready	   ;若未准备好，继续等。 
+      ;cmp指令会影响的标志位有 ZF、CF、PF 等，这里咱们借助 ZF 位来判断 cmp 的结果。
 ;第5步：从0x1f0端口读数据
       mov ax, di   ;di中存的要读取扇区数->ax
       mov dx, 256

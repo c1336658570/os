@@ -1,8 +1,8 @@
    %include "boot.inc"
    section loader vstart=LOADER_BASE_ADDR
    LOADER_STACK_TOP equ LOADER_BASE_ADDR  ;用于loader在保护模式下的栈
-   jmp loader_start					; 此处的物理地址是:                 当前指令的大小+gdt大小+60个预留描述符+gdt_ptr的6字节+loadermsg的17个字节
-   ;jmp LOADER_BASE_ADDR+ 0xb17  ; 等价于上面那条指令，详细请看书165页  3+32+480+6+17=538=0x21a  0x900+0x21a=0xb1a  0xb1a-3=0xb17
+   jmp loader_start					;机器码是E91702，3字节大小。此处的物理地址是:       当前指令的大小+gdt大小+60个预留描述符+gdt_ptr的6字节+loadermsg的17个字节
+   ;jmp LOADER_BASE_ADDR+ 0xb17  ; 等价于上面那条指令，详细请看书165页              3+32+480+6+17=538=0x21a  0x900+0x21a=0xb1a  0xb1a-3=0xb17
 ;构建gdt及其内部的描述符   0号段描述符，不可用
    GDT_BASE:   dd    0x00000000 
 	       dd    0x00000000
@@ -12,7 +12,7 @@
 ;数据段和栈段的段描述符，数据段和栈段共同使用一个段描述符   段描述符的向上或向下拓展属性，是CPU在检查段界限时使用的，向上拓展的段同样能做栈段，只是访问内存时，段界限的检查按照向上拓展的段的方式检查。
    DATA_STACK_DESC:  dd    0x0000FFFF
 		     dd    DESC_DATA_HIGH4
-;显存段描述符  未采用平坦模型，其他段都采用平坦模型
+;显存段描述符  未采用平坦模型，其他段都采用平坦模型   段基址0xb8000
    VIDEO_DESC: dd    0x80000007	       ;limit=(0xbffff-0xb8000)/4k=0x7
 	       dd    DESC_VIDEO_HIGH4  ; 此时dpl已改为0
 
@@ -20,14 +20,14 @@
    GDT_LIMIT   equ   GDT_SIZE -	1  ;GDT界限
    times 60 dq 0	; 此处预留60个描述符的slot  往GDT中添加其他描述符，提前保留空间而已。
    SELECTOR_CODE equ (0x0001<<3) + TI_GDT + RPL0    ; 相当于(CODE_DESC - GDT_BASE)/8 + TI_GDT + RPL0
-   SELECTOR_DATA equ (0x0002<<3) + TI_GDT + RPL0	 ; 同上
+   SELECTOR_DATA equ (0x0002<<3) + TI_GDT + RPL0	 ; 同上  栈段段选择子也用这个选择子（数据段段选择子）
    SELECTOR_VIDEO equ (0x0003<<3) + TI_GDT + RPL0	 ; 同上 
 
    ;以下是定义全局描述符表gdt的指针，前2字节是gdt界限，后4字节是gdt起始地址
 
    gdt_ptr  dw  GDT_LIMIT 
 	    dd  GDT_BASE
-   loadermsg db '2 loader in real.' ;该字符串用来“显示”一下要进入保护模式了。
+   loadermsg db '2 loader in real.' ;该字符串用来“显示”一下要进入保护模式了，长度17。
 
    loader_start:
 
@@ -101,11 +101,15 @@ mov byte [gs:175],0xA4
 
    ;-----------------  cr0第0位置1  ----------------
    mov eax, cr0
-   or eax, 0x00000001
+   or eax, 0x00000001      ;将PE位置为1
    mov cr0, eax
-
-   ;jmp dword SELECTOR_CODE:p_mode_start	     ; 刷新流水线，避免分支预测的影响,这种cpu优化策略，最怕jmp跳转，
-   jmp  SELECTOR_CODE:p_mode_start	     ; 刷新流水线，避免分支预测的影响,这种cpu优化策略，最怕jmp跳转，
+;自105行之后，CPU便进入了保护模式，故第107行的指令已经是在保护模式下了，但它依然还是16位的指令，
+;相当于处于16位保护模式下。为了让其使用32位偏移地址，所以添加了伪指令dword，故其机器码前会加0x66反转前缀。
+;描述符缓冲寄存器在实模式下时已经在使用了，其低20位是段基址，但其他位默认为0，也就是描述符中的D位为0，
+;这表示当前的操作数大小是16位。因为当前段描述符缓冲寄存器中的D位是0，所以操作数是16位，
+;当前属于16位保护模式。故，在这里也可以把 dword 去掉，毕竟当前操作数大小就是16位。而且p_mode_start的地址并没有超过16位
+   ;jmp dword SELECTOR_CODE:p_mode_start	     ; 刷新流水线，避免分支预测的影响,这种cpu优化策略，最怕jmp跳转，  66ea4b0b00000800  jmp far 0008：00000b4b
+   jmp  SELECTOR_CODE:p_mode_start	     ; 刷新流水线，避免分支预测的影响,这种cpu优化策略，最怕jmp跳转，    ea480b0800    jmp far 0008：0b48
 					     ; 这将导致之前做的预测失效，从而起到了刷新的作用。
 
 [bits 32]

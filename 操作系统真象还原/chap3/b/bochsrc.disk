@@ -11,9 +11,10 @@ log: bochs.out
 mouse:enabled=0
 keyboard:keymap=/usr/local/share/bochs/keymaps/x11-pc-us.map
 
-ata0:enabled=1,ioaddr1=0x1f0,ioaddr2=0x3f0,irq=14
-
 #gdbstub:enabled=1,port=1234,text_base=0,data_base=0,bss_base=0
 
+#虚拟硬盘属于ata0，是Primary通道
+ata0:enabled=1,ioaddr1=0x1f0,ioaddr2=0x3f0,irq=14
 # 加载磁盘
+#ata0-master，path=”mbr.img”，说明mbr.img是主盘
 ata0-master: type=disk, mode=flat, path="mbr.img", cylinders=58, heads=16, spt=63

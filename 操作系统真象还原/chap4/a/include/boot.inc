@@ -11,7 +11,7 @@ DESC_D_32   equ	   1_0000000000000000000000b  ;表示32位操作数
 ; 长模式标记，表示支持64位代码，这里设置为0
 DESC_L	    equ	    0_000000000000000000000b	;  64位代码标记，此处标记为0便可。为0，表示为32位代码段。
 ; CPU不使用的位，设置为0
-DESC_AVL    equ	     0_00000000000000000000b	;  cpu不用此位，暂置为0  
+DESC_AVL    equ	     0_00000000000000000000b	;  cpu不用此位，留给操作系统使用的，暂置为0  
 ; 代码段界限的16-19位
 DESC_LIMIT_CODE2  equ 1111_0000000000000000b  ;代码段段界限的第二部分（高4字节中的一部分）
 ; 数据段界限的16-19位
@@ -30,7 +30,7 @@ DESC_S_DATA equ	  DESC_S_CODE
 DESC_S_sys  equ		     0_000000000000b  ;此值为1，表示这是一个系统段，比如门描述符，gdt，tss，ldt描述符
 DESC_TYPE_CODE  equ	      1000_00000000b	;x=1,c=0,r=0,a=0 代码段是可执行的,非依从的,不可读的,已访问位a清0.  
 DESC_TYPE_DATA  equ	      0010_00000000b	;x=0,e=0,w=1,a=0 数据段是不可执行的,向上扩展的,可写的,已访问位a清0.
-;凑齐代码段段描述符高4位，采用平坦模式，所以段基址定义为0x0000
+;凑齐代码段段描述符高4位，采用平坦模式，所以段基址定义为0x0000，开始的0x00<<24和最后的0x00表示段基址的24-31和16-23位
 DESC_CODE_HIGH4 equ (0x00 << 24) + DESC_G_4K + DESC_D_32 + DESC_L + DESC_AVL + DESC_LIMIT_CODE2 + DESC_P + DESC_DPL_0 + DESC_S_CODE + DESC_TYPE_CODE + 0x00
 DESC_DATA_HIGH4 equ (0x00 << 24) + DESC_G_4K + DESC_D_32 + DESC_L + DESC_AVL + DESC_LIMIT_DATA2 + DESC_P + DESC_DPL_0 + DESC_S_DATA + DESC_TYPE_DATA + 0x00
 DESC_VIDEO_HIGH4 equ (0x00 << 24) + DESC_G_4K + DESC_D_32 + DESC_L + DESC_AVL + DESC_LIMIT_VIDEO2 + DESC_P + DESC_DPL_0 + DESC_S_DATA + DESC_TYPE_DATA + 0x0b
