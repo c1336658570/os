@@ -210,7 +210,7 @@ enter_kernel:
    mov byte [gs:494], ')'     ;视频段段基址已经被更新
    mov byte [gs:496], ';'     ;视频段段基址已经被更新
    call kernel_init
-   mov esp, 0xc009f000
+   mov esp, 0xc009f000     ;将esp改成0xc009f000
    jmp KERNEL_ENTRY_POINT                 ; 用地址0x1500访问测试，结果ok
 
 ;-----------------   将kernel.bin中的segment拷贝到编译的地址   -----------
@@ -248,7 +248,7 @@ kernel_init:
 ;---------------------------------------------------------
 mem_cpy:		      
    cld
-   push ebp
+   push ebp    ;访问栈中的参数是基于ebp来访问的，这通常意味着要将esp的值赋给ebp。将ebp入栈备份，这样在函数结束时能够将其恢复。
    mov ebp, esp
    push ecx		   ; rep指令用到了ecx，但ecx对于外层段的循环还有用，故先入栈备份
    mov edi, [ebp + 8]	   ; dst
