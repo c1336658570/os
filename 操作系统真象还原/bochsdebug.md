@@ -1,7 +1,7 @@
 trace on    用 trace on 打开了反汇编,每执行一句都会反汇编
 info gdt    查看gdt
+xp 0xb00    查看0xb00处内存中的值
 info tab    查看页表
-
 
 
 help        查看bochs支持的命令

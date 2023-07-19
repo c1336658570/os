@@ -223,7 +223,7 @@ kernel_init:
    mov dx, [KERNEL_BIN_BASE_ADDR + 42]	  ; 偏移文件42字节处的属性是e_phentsize,表示program header大小
    mov ebx, [KERNEL_BIN_BASE_ADDR + 28]   ; 偏移文件开始部分28字节的地方是e_phoff,表示第1 个program header在文件中的偏移量
 					  ; 其实该值是0x34,不过还是谨慎一点，这里来读取实际值
-   add ebx, KERNEL_BIN_BASE_ADDR
+   add ebx, KERNEL_BIN_BASE_ADDR ;ebx加上了内核文件的加载地址KERNEL_BIN_BASE_ADDR。最终ebx寄存器作为程序头表的基址
    mov cx, [KERNEL_BIN_BASE_ADDR + 44]    ; 偏移文件开始部分44字节的地方是e_phnum,表示有几个program header
 .each_segment:
    cmp byte [ebx + 0], PT_NULL		  ; 若p_type等于 PT_NULL,说明此program header未使用。
