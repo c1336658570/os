@@ -22,10 +22,15 @@ out/boot/%.bin:boot/%.S
 
 out/kernel/main.o:kernel/main.c
 	mkdir -p out/kernel
-	gcc -c -o out/kernel/main.o kernel/main.c -m32
+	gcc -I lib/kernel/ -c -o out/kernel/main.o kernel/main.c -m32
 
-out/kernel/kernel.bin:out/kernel/main.o
-	ld out/kernel/main.o  -Ttext 0xc0001500 -e main -o out/kernel/kernel.bin -melf_i386
+out/kernel/kernel.bin:out/kernel/main.o out/lib/kernel/print.o
+	ld -Ttext 0xc0001500 -e main -o out/kernel/kernel.bin \
+	out/kernel/main.o out/lib/kernel/print.o -melf_i386
+
+out/lib/kernel/print.o:lib/kernel/print.S
+	mkdir -p out/lib/kernel
+	nasm -f elf -o out/lib/kernel/print.o lib/kernel/print.S -I ./lib/kernel/include
 
 build:$(OBJS_BIN) out/kernel/kernel.bin
 
