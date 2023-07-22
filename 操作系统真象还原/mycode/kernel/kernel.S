@@ -1,0 +1,68 @@
+[bits 32]
+%define ERROR_CODE nop  ;异常CPU自动压入错误码就不做操作
+%define ZERO push 0     ;异常CPU未压入错误码就压入一个4字节0,方便统一格式
+
+extern put_str          ;声明外部函数
+
+section .data
+intr_str db "interrupt occur!", 0xa, 0
+
+global intr_entry_table
+intr_entry_table:
+%macro VECTOR 2   ;两个参数，第1个是中断向量号，第二个是压入错误玛的操作（nop或push 0）
+section .text
+intr%1entry:  ;因为宏会多次调用，展开，%1为了标号不重名   最终会变为intr[0～32]entry
+  %2  ;压入错误玛0或什么都不干，为了统一格式，因为有的中断压入错误码，有的不压入，所以在此处理一下。
+  push intr_str
+  call put_str
+  add esp, 4
+
+  ;如果是从片进入的中断，需要给从片和主片都发送EOI
+  ;往主片和从片中写入0x20，也就是写入EOI。这是8259A的操作控制字OCW2，
+  ;其中第5位是EOI位，此位为1，其余位全为0，所以是0x20。
+  mov al, 0x20
+  out 0xa0, al
+  out 0x20, al
+  
+  add esp, 4    ;跨过错误玛(error_code)
+  iret  ;从中断返回
+
+section .data
+  dd intr%1entry
+
+%endmacro
+
+;定33个中断处理程序  0～19为处理器内部固定的异常类型  20～31是Intel保留的，32是时钟中断
+VECTOR 0x00,ZERO
+VECTOR 0x01,ZERO
+VECTOR 0x02,ZERO
+VECTOR 0x03,ZERO 
+VECTOR 0x04,ZERO
+VECTOR 0x05,ZERO
+VECTOR 0x06,ZERO
+VECTOR 0x07,ZERO 
+VECTOR 0x08,ERROR_CODE
+VECTOR 0x09,ZERO
+VECTOR 0x0a,ERROR_CODE
+VECTOR 0x0b,ERROR_CODE 
+VECTOR 0x0c,ZERO
+VECTOR 0x0d,ERROR_CODE
+VECTOR 0x0e,ERROR_CODE
+VECTOR 0x0f,ZERO 
+VECTOR 0x10,ZERO
+VECTOR 0x11,ERROR_CODE
+VECTOR 0x12,ZERO
+VECTOR 0x13,ZERO 
+VECTOR 0x14,ZERO
+VECTOR 0x15,ZERO
+VECTOR 0x16,ZERO
+VECTOR 0x17,ZERO 
+VECTOR 0x18,ERROR_CODE
+VECTOR 0x19,ZERO
+VECTOR 0x1a,ERROR_CODE
+VECTOR 0x1b,ERROR_CODE 
+VECTOR 0x1c,ZERO
+VECTOR 0x1d,ERROR_CODE
+VECTOR 0x1e,ERROR_CODE
+VECTOR 0x1f,ZERO 
+VECTOR 0x20,ZERO    ;时钟中断

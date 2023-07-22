@@ -20,17 +20,31 @@ out/boot/%.bin:boot/%.S
 	mkdir -p $(dir $@)
 	nasm $^ -o $@  $(I_flags)
 
+out/kernel/print.o:lib/kernel/print.S
+	mkdir -p $(dir $@)
+	nasm -f elf -o out/kernel/print.o lib/kernel/print.S -I ./lib/kernel/include
+
+out/kernel/kernel.o:kernel/kernel.S
+	mkdir -p $(dir $@)
+	nasm -f elf -o out/kernel/kernel.o kernel/kernel.S
+
+kernel/kernel.i:kernel/kernel.S
+	mkdir -p $(dir $@)
+	nasm -E -o kernel/kernel.i kernel/kernel.S
+
 out/kernel/main.o:kernel/main.c
-	mkdir -p out/kernel
-	gcc -I lib/kernel/ -c -o out/kernel/main.o kernel/main.c -m32
+	mkdir -p $(dir $@)
+	gcc -m32 -I lib/kernel/ -I lib/ -I kernel/ -c -fno-builtin -o out/kernel/main.o kernel/main.c -fno-stack-protector
 
-out/kernel/kernel.bin:out/kernel/main.o out/lib/kernel/print.o
-	ld -Ttext 0xc0001500 -e main -o out/kernel/kernel.bin \
-	out/kernel/main.o out/lib/kernel/print.o -melf_i386
+out/interrupt.o:kernel/interrupt.c
+	gcc -m32 -I lib/kernel/ -I lib/ -I kernel/ -c -fno-builtin -o out/interrupt.o kernel/interrupt.c -fno-stack-protector
 
-out/lib/kernel/print.o:lib/kernel/print.S
-	mkdir -p out/lib/kernel
-	nasm -f elf -o out/lib/kernel/print.o lib/kernel/print.S -I ./lib/kernel/include
+out/init.o:kernel/init.c
+	gcc -m32 -I lib/kernel/ -I lib/ -I kernel/ -c -fno-builtin -o out/init.o kernel/init.c -fno-stack-protector
+
+out/kernel/kernel.bin:out/kernel/main.o out/kernel/print.o out/init.o out/interrupt.o out/kernel/kernel.o
+	ld -melf_i386  -Ttext 0xc0001500 -e main -o ./out/kernel/kernel.bin \
+    out/kernel/main.o out/kernel/print.o out/init.o out/interrupt.o out/kernel/kernel.o
 
 build:$(OBJS_BIN) out/kernel/kernel.bin
 
