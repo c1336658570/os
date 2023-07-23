@@ -42,9 +42,13 @@ out/interrupt.o:kernel/interrupt.c out/kernel/print.o
 out/init.o:kernel/init.c
 	gcc -m32 -I lib/kernel/ -I lib/ -I kernel/ -c -fno-builtin -o out/init.o kernel/init.c -fno-stack-protector
 
-out/kernel/kernel.bin:out/kernel/main.o out/kernel/print.o out/init.o out/interrupt.o out/kernel/kernel.o
+out/timer.o:device/timer.c
+	mkdir -p $(dir $@)
+	gcc -I lib/kernel -c -o out/timer.o device/timer.c -m32
+
+out/kernel/kernel.bin:out/kernel/main.o out/kernel/print.o out/init.o out/interrupt.o out/kernel/kernel.o out/timer.o
 	ld -melf_i386  -Ttext 0xc0001500 -e main -o ./out/kernel/kernel.bin \
-    out/kernel/main.o out/kernel/print.o out/init.o out/interrupt.o out/kernel/kernel.o
+    out/kernel/main.o out/kernel/print.o out/init.o out/interrupt.o out/kernel/kernel.o out/timer.o
 
 build:$(OBJS_BIN) out/kernel/kernel.bin
 
