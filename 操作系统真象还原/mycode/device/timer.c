@@ -2,7 +2,7 @@
 #include "io.h"
 #include "print.h"
 
-#define IRQ0_FREQUENCY 1          //设置的时钟中断的频率，将它设为100Hz
+#define IRQ0_FREQUENCY 100          //设置的时钟中断的频率，将它设为100Hz
 #define INPUT_FREQUENCY 1193180     //计数器0的工作脉冲信号频率
 #define COUNTER0_VALUE INPUT_FREQUENCY / IRQ0_FREQUENCY   //计数器0的计数初值(1193180/中断信号的频率=计数器0的初始计数值)
 #define CONTRER0_PORT 0x40          //计数器0的端口号0x40
