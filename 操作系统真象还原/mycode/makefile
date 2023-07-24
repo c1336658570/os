@@ -1,68 +1,94 @@
-OBJS_BIN=$(patsubst ./boot/%.S,out/boot/%.bin,$(shell find ./boot -name '*.S'))
-include_paths =  ./boot/include
+BUILD_DIR = ./build
+DISK_IMG = os.img
+ENTRY_POINT = 0xc0001500
+AS = nasm
+CC = gcc
+LD = ld
+LIB = -I lib/ -I lib/kernel/ -I lib/user/ -I kernel/ -I device/
+ASFLAGS = -f elf 
+ASBINLIB = -I boot/include/
+CFLAGS = -m32 -Wall $(LIB) -c -fno-builtin -W -Wstrict-prototypes \
+         -Wmissing-prototypes -fno-stack-protector
+LDFLAGS = -melf_i386 -Ttext $(ENTRY_POINT) -e main -Map $(BUILD_DIR)/kernel.map
+OBJS = $(BUILD_DIR)/main.o $(BUILD_DIR)/init.o $(BUILD_DIR)/interrupt.o \
+      $(BUILD_DIR)/timer.o $(BUILD_DIR)/kernel.o $(BUILD_DIR)/print.o \
+      $(BUILD_DIR)/debug.o $(BUILD_DIR)/bitmap.o $(BUILD_DIR)/string.o
 
-I_flags = $(include_paths:%=-I%)
+##############     MBR代码编译     ############### 
+$(BUILD_DIR)/mbr.bin: boot/mbr.S 
+	mkdir -p $(BUILD_DIR)
+	$(AS) $(ASBINLIB) $< -o $@
 
-#image: ${OBJS_BIN} 定义了一个名为image的目标，依赖于OBJS_BIN，
-#表示要生成一个名为mbr.img的磁盘映像文件，并将mbr.bin写入该磁盘映像中。
-image: ${OBJS_BIN} out/kernel/kernel.bin
-#创建一个大小为30MB的全0磁盘映像文件。
-	dd if=/dev/zero of=mbr.img bs=512 count=61440
-#mbr.bin文件写入mbr.img磁盘映像文件的第一个扇区。
-	dd if=out/boot/mbr.bin of=mbr.img bs=512 count=1 conv=notrunc
-	dd if=out/boot/loader.bin of=mbr.img bs=512 seek=2 count=4 conv=notrunc
-	dd if=./out/kernel/kernel.bin of=./mbr.img bs=512 count=200 seek=9 conv=notrunc
-#@-表示忽略删除过程中出现的错误。
-	@-rm -rf *.bin	
+##############     bootloader代码编译     ###############
+$(BUILD_DIR)/loader.bin: boot/loader.S 
+	mkdir -p $(BUILD_DIR)
+	$(AS) $(ASBINLIB) $< -o $@
 
-#表示将以.S为扩展名的汇编源文件编译为以.bin为扩展名的二进制文件。
-out/boot/%.bin:boot/%.S
-	mkdir -p $(dir $@)
-	nasm $^ -o $@  $(I_flags)
+##############     c代码编译     ###############
+$(BUILD_DIR)/main.o: kernel/main.c lib/kernel/print.h \
+        lib/stdint.h kernel/init.h kernel/debug.h
+	mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) $< -o $@
 
-out/kernel/print.o:lib/kernel/print.S
-	mkdir -p $(dir $@)
-	nasm -f elf -o out/kernel/print.o lib/kernel/print.S -I ./lib/kernel/include
+$(BUILD_DIR)/init.o: kernel/init.c kernel/init.h lib/kernel/print.h \
+        lib/stdint.h kernel/interrupt.h device/timer.h
+	mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) $< -o $@
 
-out/kernel/kernel.o:kernel/kernel.S
-	mkdir -p $(dir $@)
-	nasm -f elf -o out/kernel/kernel.o kernel/kernel.S
+$(BUILD_DIR)/interrupt.o: kernel/interrupt.c kernel/interrupt.h \
+        lib/stdint.h kernel/global.h lib/kernel/io.h lib/kernel/print.h
+	mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) $< -o $@
 
-kernel/kernel.i:kernel/kernel.S
-	mkdir -p $(dir $@)
-	nasm -E -o kernel/kernel.i kernel/kernel.S
+$(BUILD_DIR)/timer.o: device/timer.c device/timer.h lib/stdint.h\
+         lib/kernel/io.h lib/kernel/print.h
+	mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) $< -o $@
 
-out/kernel/main.o:kernel/main.c
-	mkdir -p $(dir $@)
-	gcc -m32 -I lib/kernel/ -I lib/ -I kernel/ -c -fno-builtin -o out/kernel/main.o kernel/main.c -fno-stack-protector
+$(BUILD_DIR)/debug.o: kernel/debug.c kernel/debug.h \
+        lib/kernel/print.h lib/stdint.h kernel/interrupt.h
+	mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) $< -o $@
 
-out/interrupt.o:kernel/interrupt.c out/kernel/print.o
-	gcc -m32 -I lib/kernel/ -I lib/ -I kernel/ -c -fno-builtin -o out/interrupt.o out/kernel/print.o kernel/interrupt.c -fno-stack-protector
+$(BUILD_DIR)/string.o: lib/string.c lib/string.h \
+        lib/stdint.h  kernel/debug.h  lib/string.h kernel/global.h
+	mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) $< -o $@
 
-out/init.o:kernel/init.c
-	gcc -m32 -I lib/kernel/ -I lib/ -I kernel/ -c -fno-builtin -o out/init.o kernel/init.c -fno-stack-protector
+$(BUILD_DIR)/bitmap.o: lib/kernel/bitmap.c lib/kernel/bitmap.h \
+        lib/kernel/print.h lib/stdint.h kernel/interrupt.h \
+		kernel/debug.h  lib/string.h kernel/global.h
+	mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) $< -o $@
 
-out/timer.o:device/timer.c
-	mkdir -p $(dir $@)
-	gcc -I lib/kernel -c -o out/timer.o device/timer.c -m32
+##############    汇编代码编译    ###############
+$(BUILD_DIR)/kernel.o: kernel/kernel.S
+	mkdir -p $(BUILD_DIR)
+	$(AS) $(ASFLAGS) $< -o $@
+$(BUILD_DIR)/print.o: lib/kernel/print.S
+	mkdir -p $(BUILD_DIR)
+	$(AS) $(ASFLAGS) -I lib/kernel/include $< -o $@
 
-out/kernel/kernel.bin:out/kernel/main.o out/kernel/print.o out/init.o out/interrupt.o out/kernel/kernel.o out/timer.o
-	ld -melf_i386  -Ttext 0xc0001500 -e main -o ./out/kernel/kernel.bin \
-    out/kernel/main.o out/kernel/print.o out/init.o out/interrupt.o out/kernel/kernel.o out/timer.o
+##############    链接所有目标文件    #############
+$(BUILD_DIR)/kernel.bin: $(OBJS)
+	mkdir -p $(BUILD_DIR)
+	$(LD) $(LDFLAGS) $^ -o $@
 
-build:$(OBJS_BIN) out/kernel/kernel.bin
+.PHONY : clean all
 
-#定义了一个名为run的目标，依赖于OBJS_BIN，表示要运行程序。
-run: ${OBJS_BIN}
-	make image
-	bochs -f bochsrc.disk
-	
-debug:
-	@echo $(OBJS_BIN)
-	@echo $(I_flags)
-
+image:$(BUILD_DIR)/kernel.bin $(BUILD_DIR)/mbr.bin $(BUILD_DIR)/loader.bin
+	dd if=/dev/zero of=os.img bs=512 count=61440
+	dd if=$(BUILD_DIR)/mbr.bin of=os.img bs=512 count=1  conv=notrunc
+	dd if=$(BUILD_DIR)/loader.bin of=os.img bs=512 count=4 seek=2 conv=notrunc
+	dd if=$(BUILD_DIR)/kernel.bin of=os.img bs=512 count=200 seek=9 conv=notrunc
 
 clean:
-	rm -rf *.img  *.out *.lock *.bin out
+	rm -rf $(BUILD_DIR) && rm -rf $(DISK_IMG) bochs.out
 
-.PHONY:image build run clean
+build: $(BUILD_DIR)/kernel.bin $(BUILD_DIR)/mbr.bin $(BUILD_DIR)/loader.bin
+
+run:
+	make image
+	bochs -f bochsrc.disk
+
+all: image
