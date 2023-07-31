@@ -7,12 +7,16 @@ LD = ld
 LIB = -I lib/ -I lib/kernel/ -I lib/user/ -I kernel/ -I device/
 ASFLAGS = -f elf 
 ASBINLIB = -I boot/include/
+#-fno-builtin告诉编译器不要采用内部函数
+#-Wstrict-prototypes选项要求函数声明中必须有参数类型，否则编译时发出警告
+#-Wmissing-prototypes选项要求函数必须有声明，否则编译时发出警告。
 CFLAGS = -m32 -Wall $(LIB) -c -fno-builtin -W -Wstrict-prototypes \
          -Wmissing-prototypes -fno-stack-protector
 LDFLAGS = -melf_i386 -Ttext $(ENTRY_POINT) -e main -Map $(BUILD_DIR)/kernel.map
 OBJS = $(BUILD_DIR)/main.o $(BUILD_DIR)/init.o $(BUILD_DIR)/interrupt.o \
       $(BUILD_DIR)/timer.o $(BUILD_DIR)/kernel.o $(BUILD_DIR)/print.o \
-      $(BUILD_DIR)/debug.o $(BUILD_DIR)/bitmap.o $(BUILD_DIR)/string.o
+      $(BUILD_DIR)/debug.o $(BUILD_DIR)/memory.o $(BUILD_DIR)/bitmap.o \
+			$(BUILD_DIR)/string.o
 
 ##############     MBR代码编译     ############### 
 $(BUILD_DIR)/mbr.bin: boot/mbr.S 
@@ -61,6 +65,10 @@ $(BUILD_DIR)/bitmap.o: lib/kernel/bitmap.c lib/kernel/bitmap.h \
 	mkdir -p $(BUILD_DIR)
 	$(CC) $(CFLAGS) $< -o $@
 
+$(BUILD_DIR)/memory.o: kernel/memory.c kernel/memory.h \
+        lib/kernel/bitmap.h lib/stdint.h 
+	$(CC) $(CFLAGS) $< -o $@
+
 ##############    汇编代码编译    ###############
 $(BUILD_DIR)/kernel.o: kernel/kernel.S
 	mkdir -p $(BUILD_DIR)
@@ -73,8 +81,6 @@ $(BUILD_DIR)/print.o: lib/kernel/print.S
 $(BUILD_DIR)/kernel.bin: $(OBJS)
 	mkdir -p $(BUILD_DIR)
 	$(LD) $(LDFLAGS) $^ -o $@
-
-.PHONY : clean all
 
 image:$(BUILD_DIR)/kernel.bin $(BUILD_DIR)/mbr.bin $(BUILD_DIR)/loader.bin
 	dd if=/dev/zero of=os.img bs=512 count=61440
@@ -92,3 +98,5 @@ run:
 	bochs -f bochsrc.disk
 
 all: image
+
+.PHONY : clean all image run build

@@ -6,7 +6,7 @@
 #include "debug.h"
 
 //位图初始化
-void bitmap_init(struct bitmap*btmp) {
+void bitmap_init(struct bitmap *btmp) {
   memset(btmp->bits, 0, btmp->btmp_bytes_len);
 }
 
@@ -19,7 +19,7 @@ bool bitmap_scan_test(struct bitmap *btmp, uint32_t bit_idx) {
 
 //在位图中申请连续cnt个位，成功，则返回其起始位下标，失败，返回−1
 int bitmap_scan(struct bitmap *btmp, uint32_t cnt) {
-  uint32_t idx_byte = 0;    //用于记录空闲位所在的字节
+  uint32_t idx_byte = 0;    //用于记录第一个空闲位所在的字节
   //逐字节比较
   while ((0xff == btmp->bits[idx_byte]) && (idx_byte < btmp->btmp_bytes_len)) { //若字节的值不为0xff，就说明该字节里面至少有一个0，于是循环条件不成立，退出循环。
     //1表示该位已分配，若为0xff，则表示该字节内已无空闲位，向下一字节继续找
