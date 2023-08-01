@@ -1,0 +1,1 @@
+添加kernel/memory.c，kernel/memory.h（内存管理相关函数）

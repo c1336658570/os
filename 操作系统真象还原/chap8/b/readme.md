@@ -1,0 +1,1 @@
+添加lib/string.c，lib/string.h（字符串操作函数）

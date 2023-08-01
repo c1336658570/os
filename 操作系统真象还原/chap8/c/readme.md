@@ -1,0 +1,1 @@
+添加位图（lib/kernel/bitmap.c，lib/kernel/bitmap.h）
