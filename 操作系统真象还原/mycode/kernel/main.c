@@ -2,16 +2,27 @@
 #include "init.h"
 #include "debug.h"
 #include "memory.h"
+#include "thread.h"
+
+void k_thread_a(void *arg);
+
 //int _start() {
 int main(void) {
   put_str("I am kernel\n");
   init_all();
-  void *addr = get_kernel_pages(3);
-  put_str("\nget_kernel_page start vaddr is");
-  put_int((uint32_t)addr);
-  put_str("\n");
+
+  thread_start("k_thread_a", 32, k_thread_a, "argA ");
+
   //asm volatile("sti");  //开中断 
-   while(1);
+  while(1);
    
-   return 0;
+  return 0;
+}
+
+//在线程中运行的函数
+void k_thread_a(void *arg) {
+  char *para = arg;
+  while (1) {
+    put_str(para);
+  }
 }
