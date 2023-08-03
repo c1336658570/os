@@ -94,6 +94,8 @@ static void idt_desc_init(void) {
 }
 
 //通用中断处理函数，一般用在异常出现时的处理
+//以后各设备都会注册自己的中断处理程序，不会再使用general_intr_handler。我们没有为各种异常注
+//册相应的中断处理程序，这里是用general_intr_handler作为通用的中断处理程序来“假装处理”异常的
 static void general_intr_handler(uint8_t vec_nr) {
   if (vec_nr == 0x27 || vec_nr == 0x2f) {
     //IRQ7和IRQ15会产生伪中断（spurious interrupt），如中断线路上电气信号异常，
@@ -101,10 +103,30 @@ static void general_intr_handler(uint8_t vec_nr) {
     //它们无法通过IMR寄存器屏蔽，所以在这里单独处理它们。
     return;
   }
-  //打印中断向量号
-  put_str("int vector : 0x");
-  put_int(vec_nr);
-  put_char('\n');
+  //将光标置为 0，从屏幕左上角清出一片打印异常信息的区域，方便阅读
+  set_cursor(0);
+  int cursor_pos = 0;
+  while (cursor_pos < 320) {  //循环清空4行内容
+    put_char(' ');
+    cursor_pos++;
+  }
+
+  set_cursor(0);    //重置光标为屏幕左上角
+  put_str("!!!!!!!   excetion message begin   !!!!!!!!\n");
+  set_cursor(88);   //从第2行第8个字符开始打印
+  put_str(intr_name[vec_nr]);
+  if (vec_nr == 14) {   //若为Pagefault，将缺失的地址打印出来并悬停
+    int page_fault_vaddr = 0;
+    asm ("movl %%cr2, %0" : "=r" (page_fault_vaddr));   //cr2是存放造成page_fault的地址
+    put_str("\npage fault addr is");
+    put_int(page_fault_vaddr);
+  }
+  put_str("\n!!!!!!!   excetion message end   !!!!!!!!\n");
+
+  //能进入中断处理程序就表示已经处在关中断情况下
+  //不会出现调度进程的情况。故下面的死循环不会再被中断
+  //处理器进入中断后会自动把标志寄存器eflags中的IF位置0，即中断处理程序在关中断的情况下运行
+  while (1);
 }
 
 //完成中断处理函数注册及异常名注册
@@ -138,23 +160,6 @@ static void exception_init(void) {
   intr_name[17] = "#AC Alignment Check Exception";
   intr_name[18] = "#MC Machine-Check Exception";
   intr_name[19] = "#XF SIMD Floating-Point Exception";
-}
-
-//完成有关中断初始化工作
-void idt_init(void) {
-  put_str("idt_init start\n");
-  idt_desc_init();    //初始化中断描述符表
-  exception_init();     //异常名初始化并注册通常的中断处理函数
-  pic_init();     //初始化8259A
-
-  //加载idt
-  //sizeof(idt) – 1得到idt的段界限limit
-  //将idt的地址挪到高32位
-  uint64_t idt_operand = ((sizeof(idt) - 1) | ((uint64_t)((uint32_t)idt) << 16));
-  //内存约束是传递的C变量的指针给汇编指令当作操作数，也就是说，在“lidt %0”中，
-  //%0其实是idt_operand的地址&idt_operand，并不是idt_operand的值
-  asm volatile ("lidt %0" : : "m"(idt_operand));
-  put_str("idt_init done\n");
 }
 
 //开中断并返回之前中断状态
@@ -193,4 +198,27 @@ enum intr_status intr_get_status(void) {
   uint32_t eflags = 0;
   GET_EFLAGS(eflags); //获取elfags寄存器的值
   return (eflags & EFLAGS_IF) ? INTR_ON : INTR_OFF;
+}
+
+void register_handler(uint8_t vector_no, intr_handler function) {
+  //idt_table数组中的函数是在进入中断后根据中断向量号调用的
+  //见kernel/kernel.S的call[idt_table + %1*4]
+  idt_table[vector_no] = function;
+}
+
+//完成有关中断初始化工作
+void idt_init(void) {
+  put_str("idt_init start\n");
+  idt_desc_init();    //初始化中断描述符表
+  exception_init();     //异常名初始化并注册通常的中断处理函数
+  pic_init();     //初始化8259A
+
+  //加载idt
+  //sizeof(idt) – 1得到idt的段界限limit
+  //将idt的地址挪到高32位
+  uint64_t idt_operand = ((sizeof(idt) - 1) | ((uint64_t)((uint32_t)idt) << 16));
+  //内存约束是传递的C变量的指针给汇编指令当作操作数，也就是说，在“lidt %0”中，
+  //%0其实是idt_operand的地址&idt_operand，并不是idt_operand的值
+  asm volatile ("lidt %0" : : "m"(idt_operand));
+  put_str("idt_init done\n");
 }

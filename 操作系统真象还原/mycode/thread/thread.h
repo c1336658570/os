@@ -1,6 +1,7 @@
 #ifndef __THREAD_THREAD_H
 #define __THREAD_THREAD_H
 #include "stdint.h"
+#include "list.h"
 
 //自定义通用函数类型，它将在很多线程函数中作为形参类型
 typedef void thread_func(void *); //用来指定在线程中运行的函数类型
@@ -90,13 +91,34 @@ struct thread_stack {
 struct task_struct {
   uint32_t *self_kstack;    //各内核线程都使用自己的内核栈
   enum task_status status;  //记录线程状态
-  uint8_t priority;         //线程优先级
   char name[16];            //记录任务（线程或进程）的名字
+  uint8_t priority;         //线程优先级
+  uint8_t ticks;            //每次在处理器上执行的时间嘀嗒数(任务的时间片)，每次时钟中断都会将当前任务的ticks减1，当减到0时就被换下处理器
+
+  //此任务自上cpu运行后至今占用了多少cpu嘀嗒数，也就是此任务执行了多久
+  uint32_t elapsed_ticks;
+
+  //以下两个结构将来从队列中把它们取出来时，还需要再通过offset宏与elem2entry宏的“反操作”，
+  //实现从&general_tag到&thread的地址转换，将它们还原成线程的PCB地址后才能使用
+
+  //general_tag的作用是用于线程在一般的队列中的结点
+  //线程的标签，当线程被加入到就绪队列thread_ready_list或其他等待队列中时，就把该线程PCB中general_tag的地址加入队列。
+  struct list_elem general_tag;
+
+  //all_list_tag的作用是用于线程队列thread_all_list中的结点，专用于线程被加入全部线程队列时使用
+  struct list_elem all_list_tag;
+
+  //进程自己页表的虚拟地址,如果该任务为线程，pgdir则为NULL，否则pgdir会被赋予页表的虚拟地址，
+  //注意此处是虚拟地址，页表加载时还是要被转换成物理地址的
+  uint32_t *pgdir;          //进程自己页表的虚拟地址
   uint32_t stack_magic;     //栈的边界标记，用于检测溢出，防止压栈过程中会把PCB中的信息给覆盖
 };
 
 void thread_create(struct task_struct* pthread, thread_func function, void* func_arg);
 void init_thread(struct task_struct* pthread, char* name, int prio);
 struct task_struct* thread_start(char* name, int prio, thread_func function, void* func_arg);
+struct task_struct* running_thread(void);
+void schedule(void);
+void thread_init(void);
 
 #endif
