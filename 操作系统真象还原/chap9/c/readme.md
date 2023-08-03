@@ -1,0 +1,1 @@
+thread.c和thread.h进一步完善，修改kernel/interrupt.c，修改device/timer.c，添加thread/switch.S
