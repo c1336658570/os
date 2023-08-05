@@ -29,7 +29,7 @@ static void frequency_set(uint8_t counter_port, uint8_t counter_no, uint8_t rwl,
   //先写入counter_value的低8位
   outb(counter_port, (uint8_t)counter_value);
   //再写入counter_value的高8位
-  outb(counter_port, (uint8_t)(counter_value >> 8));
+  outb(counter_port, (uint8_t)0);
 }
 
 //时钟的中断处理函数

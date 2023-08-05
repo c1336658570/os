@@ -11,7 +11,7 @@ ASBINLIB = -I boot/include/
 #-Wstrict-prototypes选项要求函数声明中必须有参数类型，否则编译时发出警告
 #-Wmissing-prototypes选项要求函数必须有声明，否则编译时发出警告。
 CFLAGS = -m32 -Wall $(LIB) -c -fno-builtin -W -Wstrict-prototypes \
-         -Wmissing-prototypes -fno-stack-protector -ggdb -nostdinc -mno-sse -g
+         -Wmissing-prototypes -fno-stack-protector -ggdb -nostdinc -mno-sse -g -fno-pic
 LDFLAGS = -melf_i386 -Ttext $(ENTRY_POINT) -e main -Map $(BUILD_DIR)/kernel.map
 
 #bochs参数
