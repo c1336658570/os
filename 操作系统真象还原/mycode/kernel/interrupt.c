@@ -4,7 +4,7 @@
 #include "io.h"
 #include "print.h"
 
-#define IDT_DESC_CNT 0X21     //目前总共支持的中断数
+#define IDT_DESC_CNT 0X30     //目前总共支持的中断数
 
 #define PIC_M_CTRL 0x20   //主片的控制端口是0x20
 #define PIC_M_DATA 0x21   //主片的数据端口是0x21
