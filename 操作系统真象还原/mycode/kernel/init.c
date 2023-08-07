@@ -1,11 +1,12 @@
 #include "init.h"
 #include "print.h"
 #include "interrupt.h"
-#include "../device/timer.h"
+#include "timer.h"
 #include "memory.h"
 #include "thread.h"
 #include "console.h"
 #include "keyboard.h"
+#include "tss.h"
 
 //初始化所有模块
 void init_all() {
@@ -16,4 +17,5 @@ void init_all() {
   thread_init();  //初始化线程相关结构
   console_init(); //控制台初始化最好放在开中断之前
   keyboard_init();  // 键盘初始化
+  tss_init();   //tss初始化
 }
