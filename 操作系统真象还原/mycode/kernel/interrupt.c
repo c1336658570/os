@@ -62,8 +62,7 @@ static void pic_init(void) {
   outb(PIC_S_DATA, 0x01);   //ICW4：8086模式，正常EOI
 
   //主片IR0是时钟中断，IR1是键盘中断
-  //测试键盘，只打开键盘中断，其他全部关闭
-  outb(PIC_M_DATA, 0xfd);   //主片OCW1为0xfd，不屏蔽IR1（键盘中断），其他都屏蔽
+  outb(PIC_M_DATA, 0xfc);   //主片OCW1为0xfc，不屏蔽IR1（键盘中断）和IR0（时钟中断），其他都屏蔽
   outb(PIC_S_DATA, 0XFF);   //从片OCW1为0xff，全屏蔽
 
   put_str("pic_init done\n");
