@@ -1,0 +1,1 @@
+在thread/thread中增加sync.c和sync.h，实现锁，在thread.c中实现block和unblock，实现线程的阻塞和唤醒

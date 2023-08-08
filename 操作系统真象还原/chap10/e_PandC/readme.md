@@ -1,0 +1,4 @@
+生产者与消费者实例测试
+修改interrupt.c，将时钟中断和键盘中断都打开
+keyboard.h中添加extern struct ioqueue kbd_buf;缓冲区的声明
+修改main，在main中创建多个消费者，消费kbd_buf
