@@ -7,6 +7,7 @@
 #include "print.h"
 #include "memory.h"
 #include "process.h"
+#include "sync.h"
 
 #define PG_SIZE 4096
 
@@ -14,6 +15,7 @@ struct task_struct *main_thread;      //主线程PCB
 struct list thread_ready_list;        //就绪队列
 struct list thread_all_list;          //所有任务队列
 static struct list_elem *thread_tag;  //用于保存队列中的线程节点
+struct lock pid_lock;                 //分配pid锁
 
 extern void switch_to(struct task_struct *cur, struct task_struct *next);
 
@@ -34,6 +36,14 @@ static void kernel_thread(thread_func *function, void *func_arg) {
   //因此在执行function前要打开中断，否则kernel_thread中的function在关中断的情况下运行，
   //也就是时钟中断被屏蔽了，再也不会调度到新的线程，function会独享处理器
   function(func_arg);
+}
+
+static pid_t allocate_pid(void) {
+  static pid_t next_pid = 0;
+  lock_acquire(&pid_lock);
+  next_pid++;
+  lock_release(&pid_lock);
+  return next_pid;
 }
 
 //初始化线程栈thread_stack，将待执行的函数和参数放到thread_stack中相应的位置  创建线程运行的栈
@@ -59,6 +69,7 @@ void thread_create(struct task_struct *pthread, thread_func function, void *func
 //pthread是待初始化线程的指针，name是线程名称，prio是线程的优先级
 void init_thread(struct task_struct *pthread, char *name, int prio) {
   memset(pthread, 0, PG_SIZE);  //所在的PCB清0
+  pthread->pid = allocate_pid();  //为线程分配pid
   strcpy(pthread->name, name);  //将线程名写入PCB中的name数组中
 
   if (pthread == main_thread) {
@@ -167,10 +178,12 @@ void thread_unblock(struct task_struct *pthread) {
   intr_set_status(old_status);
 }
 
+//初始化线程环境
 void thread_init(void) {
   put_str("thread_init start\n");
   list_init(&thread_ready_list);
   list_init(&thread_all_list);
+  lock_init(&pid_lock);
   //将当前main函数创建为线程
   make_main_thread();
   put_str("thread_init done\n");

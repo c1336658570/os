@@ -21,12 +21,12 @@ BOCHS_PORT="target remote 127.0.0.1:1234"
 BOCHS_GDB_FLAG='gdbstub:enabled=1,port=1234,text_base=0,data_base=0,bss_base=0'
 
 OBJS = $(BUILD_DIR)/main.o $(BUILD_DIR)/init.o $(BUILD_DIR)/interrupt.o \
-      $(BUILD_DIR)/timer.o $(BUILD_DIR)/kernel.o $(BUILD_DIR)/print.o \
-      $(BUILD_DIR)/debug.o $(BUILD_DIR)/memory.o $(BUILD_DIR)/bitmap.o \
-			$(BUILD_DIR)/string.o $(BUILD_DIR)/thread.o $(BUILD_DIR)/list.o \
-    	$(BUILD_DIR)/switch.o  $(BUILD_DIR)/console.o $(BUILD_DIR)/sync.o \
-			$(BUILD_DIR)/keyboard.o $(BUILD_DIR)/ioqueue.o $(BUILD_DIR)/tss.o	\
-			$(BUILD_DIR)/process.o
+	   $(BUILD_DIR)/timer.o $(BUILD_DIR)/kernel.o $(BUILD_DIR)/print.o \
+	   $(BUILD_DIR)/debug.o $(BUILD_DIR)/memory.o $(BUILD_DIR)/bitmap.o \
+	   $(BUILD_DIR)/string.o $(BUILD_DIR)/thread.o $(BUILD_DIR)/list.o \
+	   $(BUILD_DIR)/switch.o  $(BUILD_DIR)/console.o $(BUILD_DIR)/sync.o \
+	   $(BUILD_DIR)/keyboard.o  $(BUILD_DIR)/ioqueue.o $(BUILD_DIR)/tss.o \
+	   $(BUILD_DIR)/process.o  $(BUILD_DIR)/syscall.o $(BUILD_DIR)/syscall-init.o
 
 ##############     MBR代码编译     ############### 
 $(BUILD_DIR)/mbr.bin: boot/mbr.S 
@@ -110,6 +110,14 @@ $(BUILD_DIR)/process.o: userprog/process.c userprog/process.h thread/thread.h \
 	lib/stdint.h lib/kernel/list.h kernel/global.h kernel/debug.h \
 	kernel/memory.h lib/kernel/bitmap.h userprog/tss.h kernel/interrupt.h \
 	lib/string.h lib/stdint.h
+	$(CC) $(CFLAGS) $< -o $@
+
+$(BUILD_DIR)/syscall.o: lib/user/syscall.c lib/user/syscall.h lib/stdint.h
+	$(CC) $(CFLAGS) $< -o $@
+
+$(BUILD_DIR)/syscall-init.o: userprog/syscall-init.c userprog/syscall-init.h \
+	lib/stdint.h lib/user/syscall.h lib/kernel/print.h thread/thread.h \
+	lib/kernel/list.h kernel/global.h lib/kernel/bitmap.h kernel/memory.h
 	$(CC) $(CFLAGS) $< -o $@
 
 ##############    汇编代码编译    ###############

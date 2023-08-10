@@ -7,6 +7,7 @@
 
 //自定义通用函数类型，它将在很多线程函数中作为形参类型
 typedef void thread_func(void *); //用来指定在线程中运行的函数类型
+typedef int16_t pid_t;
 
 //进程或线程的状态
 //进程与线程的区别是它们是否独自拥有地址空间，也就是是否拥有页表，程序的状态都是通用的
@@ -92,6 +93,7 @@ struct thread_stack {
 //进程或线程的pcb
 struct task_struct {
   uint32_t *self_kstack;    //各内核线程都使用自己的内核栈
+  pid_t pid;                //线程pid
   enum task_status status;  //记录线程状态
   char name[16];            //记录任务（线程或进程）的名字
   uint8_t priority;         //线程优先级
