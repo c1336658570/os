@@ -2,6 +2,8 @@
 #define __THREAD_THREAD_H
 #include "stdint.h"
 #include "list.h"
+#include "bitmap.h"
+#include "memory.h"
 
 //自定义通用函数类型，它将在很多线程函数中作为形参类型
 typedef void thread_func(void *); //用来指定在线程中运行的函数类型
@@ -111,8 +113,13 @@ struct task_struct {
   //进程自己页表的虚拟地址,如果该任务为线程，pgdir则为NULL，否则pgdir会被赋予页表的虚拟地址，
   //注意此处是虚拟地址，页表加载时还是要被转换成物理地址的
   uint32_t *pgdir;          //进程自己页表的虚拟地址
+  //每个进程都拥有4GB的虚拟地址空间，虚拟地址连续而物理地址可以不连续，所以需要一个虚拟地址池
+  struct virtual_addr userprog_vaddr; //用户进程的虚拟地址池
   uint32_t stack_magic;     //栈的边界标记，用于检测溢出，防止压栈过程中会把PCB中的信息给覆盖
 };
+
+extern struct list thread_ready_list;
+extern struct list thread_all_list;
 
 void thread_create(struct task_struct* pthread, thread_func function, void* func_arg);
 void init_thread(struct task_struct* pthread, char* name, int prio);

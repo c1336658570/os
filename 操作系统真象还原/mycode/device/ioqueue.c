@@ -1,3 +1,5 @@
+//实现环形缓冲
+//个人觉得ioq_getchar和ioq_putchar多线程时有问题
 #include "ioqueue.h"
 #include "interrupt.h"
 #include "global.h"
@@ -28,6 +30,8 @@ bool ioq_empty(struct ioqueue *ioq) {
 }
 
 //使当前生产者或消费者在此缓冲区上等待
+//传给它的实参将是线程指针的地址，传给它的实参是缓冲区中的成员producer或consumer
+//函数功能是使当前线程睡眠，并在缓冲区中等待
 static void ioq_wait(struct task_struct **waiter) {
   ASSERT(*waiter == NULL && waiter != NULL);
   *waiter = running_thread();
@@ -35,6 +39,7 @@ static void ioq_wait(struct task_struct **waiter) {
 }
 
 //唤醒waiter
+//传给它的实参也是缓冲区中的成员producer或consumer
 static void wakeup(struct task_struct **waiter) {
   ASSERT(*waiter != NULL);
   thread_unblock(*waiter);

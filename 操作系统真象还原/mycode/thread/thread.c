@@ -6,6 +6,7 @@
 #include "interrupt.h"
 #include "print.h"
 #include "memory.h"
+#include "process.h"
 
 #define PG_SIZE 4096
 
@@ -35,7 +36,7 @@ static void kernel_thread(thread_func *function, void *func_arg) {
   function(func_arg);
 }
 
-//初始化线程栈thread_stack，将待执行的函数和参数放到thread_stack中相应的位置
+//初始化线程栈thread_stack，将待执行的函数和参数放到thread_stack中相应的位置  创建线程运行的栈
 //pthread是待创建的线程的指针，function是在线程中运行的函数，func_arg是function的参数。
 void thread_create(struct task_struct *pthread, thread_func function, void *func_arg) {
   //先预留中断使用栈的空间
@@ -54,7 +55,7 @@ void thread_create(struct task_struct *pthread, thread_func function, void *func
   //kthread_stack->unused_retaddr 是不需要赋值的，就是用来占位的，因此并没有对它处理。
 }
 
-//初始化线程基本信息
+//初始化线程基本信息(pcb中的信息)
 //pthread是待初始化线程的指针，name是线程名称，prio是线程的优先级
 void init_thread(struct task_struct *pthread, char *name, int prio) {
   memset(pthread, 0, PG_SIZE);  //所在的PCB清0
@@ -132,6 +133,8 @@ void schedule() {
   thread_tag = list_pop(&thread_ready_list);  //从就绪队列中弹出一个可用线程并存入thread_tag
   struct task_struct *next = elem2entry(struct task_struct, general_tag, thread_tag);
   next->status = TASK_RUNNING;
+  //激活进程的页表等
+  process_activate(next);
   switch_to(cur, next);
 }
 

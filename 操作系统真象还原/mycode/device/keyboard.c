@@ -48,7 +48,7 @@ static bool ctrl_status, shift_status, alt_status, caps_lock_status, ext_scancod
 static char keymap[][2] = {
 // 扫描码   未与shift组合  与shift组合
 /* ---------------------------------- */
-/* 0x00 */	{0,	0},		
+/* 0x00 */	{0,	0},		  //没有通码为0的键
 /* 0x01 */	{esc,	esc},		
 /* 0x02 */	{'1',	'!'},		
 /* 0x03 */	{'2',	'@'},		
@@ -200,7 +200,7 @@ static void intr_keyboard_handler(void) {
     if (cur_char) {
       //若kbd_buf中未满并且待加入的cur_char不为0，则将其加入到缓冲区kbd_buf中
       if (!ioq_full(&kbd_buf)) {
-        put_char(cur_char);   //临时的,为的是演示缓冲区写满的情况。理论情况是咱们缓冲区只支持63个字节，多输入的字符将不再响应
+        //put_char(cur_char);   //临时的,为的是演示缓冲区写满的情况。理论情况是咱们缓冲区只支持63个字节，多输入的字符将不再响应
         ioq_putchar(&kbd_buf, cur_char);
       }
       return;

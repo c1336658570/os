@@ -61,7 +61,7 @@ void tss_init() {
   uint32_t tss_size = sizeof(tss);
   memset(&tss, 0, tss_size);
   tss.ss0 = SELECTOR_K_STACK;
-  tss.io_base = tss_size;
+  tss.io_base = tss_size; //表示此TSS中并没有IO位图
 
   //gdt段基址为0x900，把tss放到第4个位置，也就是0x900+0x20的位置
   //在gdt中添加dpl为0的TSS描述符
