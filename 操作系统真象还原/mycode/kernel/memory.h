@@ -2,6 +2,7 @@
 #define __KERNEL_MEMORY_H
 #include "stdint.h"
 #include "bitmap.h"
+#include "list.h"
 
 //内存池标记，用于判断用哪个内存池
 enum pool_flags {
@@ -22,6 +23,23 @@ struct virtual_addr {
   uint32_t vaddr_start;         //虚拟地址起始地址
 };
 
+//内存块
+struct mem_block {
+  struct list_elem free_elem;   //用来添加到同规格内存块描述符的free_list中
+};
+
+//除了元信息占用的内存外，arena中不能同时容纳两个2048的内存块，
+//2048下一级内存规格就是1024，故最大的内存块就是1024字节
+//当申请的内存大小超过1024时就直接返回一个页框，不再从arena中划分
+//内存块描述符
+struct mem_block_desc {
+  uint32_t block_size;        //内存块大小
+  uint32_t blocks_per_arena;  //本arena中可容纳此mem_block的数量
+  struct list free_list;      //目前可用的mem_block链表  空闲内存块链表
+};
+
+#define DESC_CNT 7            //内存块描述符个数    16、32、64、128、256、512、1024，共有7种规格的内存块
+
 extern struct pool kernel_pool, user_pool;
 void mem_init(void);
 void* get_kernel_pages(uint32_t pg_cnt);
@@ -32,4 +50,6 @@ uint32_t* pde_ptr(uint32_t vaddr);
 uint32_t addr_v2p(uint32_t vaddr);
 void* get_a_page(enum pool_flags pf, uint32_t vaddr);
 void* get_user_pages(uint32_t pg_cnt);
+void block_desc_init(struct mem_block_desc* desc_array);
+void* sys_malloc(uint32_t size);
 #endif
