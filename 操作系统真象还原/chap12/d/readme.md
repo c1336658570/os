@@ -1,0 +1,1 @@
+修改kernel/memory.c和kernel/memory.h，实现内存结构的初始化（一些结构体和block_desc_init），为malloc做准备
