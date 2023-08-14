@@ -332,6 +332,12 @@ void *sys_malloc(uint32_t size) {
   }
 }
 
+//内存释放步骤：
+//（1）在物理地址池中释放物理页地址，相关的函数是 pfree，操作的位图同 palloc。
+//（2）在页表中去掉虚拟地址的映射，原理是将虚拟地址对应pte的P位置0，相关的函数是page_table_pte_remove。
+//（3）在虚拟地址池中释放虚拟地址，相关的函数是vaddr_remove，操作的位图同vaddr_get。
+//我们将以上三个功能封装到函数mfree_page中。
+
 //将物理地址pg_phy_addr回收到物理内存池
 //接受一个参数，即物理页框地址pg_phy_addr
 void pfree(uint32_t pg_phy_addr) {

@@ -11,6 +11,7 @@
 
 #define PG_SIZE 4096
 
+struct task_struct *idle_thread;      //idle线程
 struct task_struct *main_thread;      //主线程PCB
 struct list thread_ready_list;        //就绪队列
 struct list thread_all_list;          //所有任务队列
@@ -25,6 +26,17 @@ struct task_struct *running_thread() {
   asm ("mov %%esp, %0" : "=g"(esp));
   //取esp整数部分，即pcb起始地址
   return (struct task_struct *)(esp & 0xfffff000);
+}
+
+//系统空闲时运行的线程
+static void idle(void* arg UNUSED) {
+  while (1) {
+    thread_block(TASK_BLOCKED);
+    //执行hlt时必须要保证目前处在开中断的情况下
+    //执行完处理器已经停止运行，因此并不会再产生内部异常，
+    //唯一能唤醒处理器的就是外部中断，当外部发生后，处理器恢复执行后面的指令
+    asm volatile("sti; hlt" : : : "memory");
+  }
 }
 
 //由kernel_thread去执行function(func_arg)
@@ -138,6 +150,11 @@ void schedule() {
     //若此线程需要某事件发生后才能继续上cpu运行，不需要将其加入队列，因为当前线程不在就绪队列中
   }
 
+  //如果就绪队列中没有可运行的任务，就唤醒idle
+  if (list_empty(&thread_ready_list)) {
+    thread_unblock(idle_thread);
+  }
+
   ASSERT(!list_empty(&thread_ready_list));  //避免无线程可调度的情况
   thread_tag = NULL;    //thread_tag清空
   //将thread_ready_list队列中的第一个就绪线程弹出，准备将其调度上cpu
@@ -178,6 +195,21 @@ void thread_unblock(struct task_struct *pthread) {
   intr_set_status(old_status);
 }
 
+//主动让出cpu，换其他线程运行
+//（1）先将当前任务重新加入到就绪队列（队尾）
+//（2）然后将当前任务的status置为TASK_READY
+//（3）最后调用schedule重新调度新任务
+//前2步必须是原子操作
+void thread_yield(void) {
+  struct task_struct *cur = running_thread();
+  enum intr_status old_status = intr_disable();
+  ASSERT(!elem_find(&thread_ready_list, &cur->general_tag));
+  list_append(&thread_ready_list, &cur->general_tag);
+  cur->status = TASK_READY;
+  schedule();
+  intr_set_status(old_status);
+}
+
 //初始化线程环境
 void thread_init(void) {
   put_str("thread_init start\n");
@@ -186,5 +218,7 @@ void thread_init(void) {
   lock_init(&pid_lock);
   //将当前main函数创建为线程
   make_main_thread();
+  //创建idle线程
+  idle_thread = thread_start("idle", 10, idle, NULL);
   put_str("thread_init done\n");
 }

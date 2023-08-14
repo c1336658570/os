@@ -17,3 +17,4 @@ ata0:enabled=1,ioaddr1=0x1f0,ioaddr2=0x3f0,irq=14
 
 # 加载磁盘
 ata0-master: type=disk, mode=flat, path="os.img", cylinders=58, heads=16, spt=63
+ata0-slave: type=disk, mode=flat, path="file_system.img", cylinders=162, heads=16, spt=63

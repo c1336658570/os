@@ -64,8 +64,13 @@ static void pic_init(void) {
   outb(PIC_S_DATA, 0x01);   //ICW4：8086模式，正常EOI
 
   //主片IR0是时钟中断，IR1是键盘中断
-  outb(PIC_M_DATA, 0xfe);   //主片OCW1为0xfc，不屏蔽IR1（键盘中断）和IR0（时钟中断），其他都屏蔽
-  outb(PIC_S_DATA, 0XFF);   //从片OCW1为0xff，全屏蔽
+  //IRQ2用于级联从片，必须打开，否则无法响应从片上的中断。
+  //主片上打开的中断有IRQ0的时钟，IRQ1的键盘和级联从片的IRQ2，其他全部关闭
+  outb(PIC_M_DATA, 0xf8);   //主片OCW1为0xfc，不屏蔽IR2、IR1（键盘中断）和IR0（时钟中断），其他都屏蔽
+  //硬盘上有两个ata通道，也称为IDE通道。第1个ata通道上的两个硬盘（主和从）的中断信号挂在8259A从片的IRQ14上
+  //第2个ata通道接在8259A从片的IRQ15
+  //打开从片上的IRQ14，此引脚接收硬盘控制器的中断
+  outb(PIC_S_DATA, 0Xbf);   //从片OCW1为0xff，全屏蔽
 
   put_str("pic_init done\n");
 }
