@@ -128,6 +128,7 @@ struct gdt_desc {
 
 #define PG_SIZE 4096
 
+//((unused)) 是一个属性参数，用于告诉编译器忽略对该变量未使用的警告
 #define UNUSED __attribute__ ((unused))
 
 #endif

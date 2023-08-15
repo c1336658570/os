@@ -70,7 +70,7 @@ static void pic_init(void) {
   //硬盘上有两个ata通道，也称为IDE通道。第1个ata通道上的两个硬盘（主和从）的中断信号挂在8259A从片的IRQ14上
   //第2个ata通道接在8259A从片的IRQ15
   //打开从片上的IRQ14，此引脚接收硬盘控制器的中断
-  outb(PIC_S_DATA, 0Xbf);   //从片OCW1为0xff，全屏蔽
+  outb(PIC_S_DATA, 0xbf);   //从片OCW1为0xff，全屏蔽
 
   put_str("pic_init done\n");
 }

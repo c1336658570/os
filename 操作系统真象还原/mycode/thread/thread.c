@@ -150,6 +150,7 @@ void schedule() {
     //若此线程需要某事件发生后才能继续上cpu运行，不需要将其加入队列，因为当前线程不在就绪队列中
   }
 
+  //idle_thread在第一次创建时会被加入到就绪队列，因此会执行一次，然后阻塞
   //如果就绪队列中没有可运行的任务，就唤醒idle
   if (list_empty(&thread_ready_list)) {
     thread_unblock(idle_thread);
