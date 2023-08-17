@@ -1,0 +1,1 @@
+添加lib/kernel/stdio-kernel.h和lib/kernel/stdio-kernel.c，实现内核打印函数printk，修改kernel/interupt.c，打开硬盘中断。添d加evice/ide.h和device/ide.c
