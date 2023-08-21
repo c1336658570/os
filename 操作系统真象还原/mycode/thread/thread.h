@@ -5,6 +5,8 @@
 #include "bitmap.h"
 #include "memory.h"
 
+#define MAX_FILES_OPEN_PER_PROC 8
+
 //自定义通用函数类型，它将在很多线程函数中作为形参类型
 typedef void thread_func(void *); //用来指定在线程中运行的函数类型
 typedef int16_t pid_t;
@@ -101,6 +103,8 @@ struct task_struct {
 
   //此任务自上cpu运行后至今占用了多少cpu嘀嗒数，也就是此任务执行了多久
   uint32_t elapsed_ticks;
+
+  int32_t fd_table[MAX_FILES_OPEN_PER_PROC];    //文件描述符数组
 
   //以下两个结构将来从队列中把它们取出来时，还需要再通过offset宏与elem2entry宏的“反操作”，
   //实现从&general_tag到&thread的地址转换，将它们还原成线程的PCB地址后才能使用

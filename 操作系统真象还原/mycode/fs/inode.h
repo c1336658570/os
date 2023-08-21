@@ -2,6 +2,7 @@
 #define __FS_INODE_H
 #include "stdint.h"
 #include "list.h"
+#include "ide.h"
 
 //inode结构
 struct inode {
@@ -18,5 +19,10 @@ struct inode {
   //为了避免下次再打开该文件时还要从硬盘上重复载入inode，应该在该文件第一次被打开时就将其inode加入到内存缓存中，
   //每次打开一个文件时，先在此缓冲中查找相关的inode，如果有就直接使用，否则再从硬盘上读取inode，然后再加入此缓存
 };
+
+struct inode* inode_open(struct partition* part, uint32_t inode_no);
+void inode_sync(struct partition* part, struct inode* inode, void* io_buf);
+void inode_init(uint32_t inode_no, struct inode* new_inode);
+void inode_close(struct inode* inode);
 
 #endif
