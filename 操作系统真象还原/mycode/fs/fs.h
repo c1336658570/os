@@ -25,6 +25,9 @@ enum oflags {
 
 //用来记录查找文件过程中已找到的上级路径，也就是查找文件过程中“走过的地方”，用此结构的目的是想获取路径中“断链”的部分。
 struct path_search_record {
+  //此结构用来记录查找文件过程中已处理过的上级路径，用此结构的目的是想获取路径中“断链”的部分，
+  //比如查找文件“/a/b/c”，若仅是c不存在，searched_path的值为“/a/b/c”，
+  //若是b就不存在，searched_path的值为“/a/b”
   char searched_path[MAX_PATH_LEN];     //查找过程中的父路径
   struct dir *parent_dir;               //文件或目录所在的直接父目录
   enum file_types file_type;            //找到的是普通文件，还是目录，找不到将为未知类型(FT_UNKNOWN)

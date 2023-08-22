@@ -231,6 +231,6 @@ void thread_init(void) {
   //将当前main函数创建为线程
   make_main_thread();
   //创建idle线程
-  idle_thread = thread_start("idle", 10, idle, NULL);
+  idle_thread = thread_start("idle", 1, idle, NULL);
   put_str("thread_init done\n");
 }

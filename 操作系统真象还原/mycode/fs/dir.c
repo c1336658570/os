@@ -185,6 +185,7 @@ bool sync_dir_entry(struct dir *parent_dir, struct dir_entry *p_de, void * io_bu
           block_bitmap_idx = dir_inode->i_sectors[12] - cur_part->sb->data_start_lba;
           bitmap_set(&cur_part->block_bitmap, block_bitmap_idx, 0);
           //个人觉得此处应该回写磁盘，因为修改了位图信息，应该将块位图同步到磁盘
+          bitmap_sync(cur_part, block_bitmap_idx, BLOCK_BITMAP);    //将块位图同步到硬盘
           dir_inode->i_sectors[12] = 0;
           printk("alloc block bitmap for sync_dir_entry failed\n");
           return false;

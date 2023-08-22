@@ -10,6 +10,7 @@
 #include "global.h"
 #include "debug.h"
 #include "memory.h"
+#include "file.h"
 
 struct partition *cur_part;     //默认情况下操作的是哪个分区
 
@@ -69,15 +70,16 @@ static bool mount_partition(struct list_elem *pelem, int arg) {
 //格式化分区，也就是初始化分区的元信息，创建文件系统
 //接受1个参数，待创建文件系统的分区part。为方便实现，一个块大小是一扇区
 //创建文件系统就是创建文件系统所需要的元信息，这包括超级块位置及大小、空闲块位图的位置及大小、
-//inode位图的位置及大小、inode数组的位置及大小、空闲块起始地址、根目录起始地址。创建步骤如下：
+//inode位图的位块置及大小、inode数组的位置及大小、空闲块起始地址、根目录起始地址。创建步骤如下：
 //（1）根据分区part大小，计算分区文件系统各元信息需要的扇区数及位置。
-//（2）在内存中创建超级块，将以上步骤计算的元信息写入超级块。
+//（2）在内存中创建超级，将以上步骤计算的元信息写入超级块。
 //（3）将超级块写入磁盘。
 //（4）将元信息写入磁盘上各自的位置。
 //（5）将根目录写入磁盘。
 static void partition_format(struct partition* part) {
   //blocks_bitmap_init（为方便实现，一个块大小是一扇区）
   //操作系统引导块就是操作系统引导记录OBR所在的地址，即操作系统引导扇区，它位于各分区最开始的扇区
+  //的引导块未使用，因此无所谓大小，但依然要保留其占位。
   uint32_t boot_sector_sects = 1;   //为引导块占用的扇区数赋值
   //超级块固定存储在各分区的第2个扇超级块逻辑结构区
   uint32_t super_block_sects = 1;   //为超级块占用的扇区数赋值
@@ -167,7 +169,7 @@ static void partition_format(struct partition* part) {
   //准备写inode_table中的第0项,即根目录所在的inode
   memset(buf, 0, buf_size);
   struct inode *i = (struct inode *)buf;
-  i->i_size = sb.dir_entry_size * 2;    //.和..
+  i->i_size = sb.dir_entry_size * 2;    //.和.. i_size表示此目录下所有目录项的大小之和
   i->i_no = 0;    //根目录占inode数组中第0个inode
   i->i_sectors[0] = sb.data_start_lba;
 
@@ -195,63 +197,6 @@ static void partition_format(struct partition* part) {
   printk("root_dir_lba:0x%x\n", sb.data_start_lba);
   printk("%s format done\n", part->name);
   sys_free(buf);
-}
-
-//在磁盘上搜索文件系统，若没有则格式化分区创建文件系统
-void filesys_init() {
-  uint8_t channel_no = 0, dev_no, part_idx = 0;
-
-  //sb_buf用来存储从硬盘上读入的超级块
-  struct super_block *sb_buf = (struct super_block *)sys_malloc(SECTOR_SIZE);
-
-  if (sb_buf == NULL) {
-    PANIC("alloc memory failed!\n");
-  }
-  printk("searching filesystem......\n");
-
-  //通过三层循环完成的，最外层循环用来遍历通道，中间层循环用来遍历通道中的硬盘，最内层循环用来遍历硬盘上的所有分区
-  while (channel_no < channel_cnt) {
-    dev_no = 0;
-    while (dev_no < 2) {
-      if (dev_no == 0) {  //跨过裸盘os.img
-        dev_no++;
-        continue;
-      }
-      struct disk *hd = &(channels[channel_no].devices[dev_no]);
-      struct partition *part = hd->prim_parts;
-      while (part_idx < 12) {   //4个主分区+8个逻辑
-        if (part_idx == 4) {    //开始处理逻辑分区
-          part = hd->logic_parts;
-        }
-        //channels数组是全局变量，默认值为0，disk属于其嵌套结构，partition又为disk的嵌套结构，
-        //因此partition中的成员默认也为0。若partition未初始化，则partition中的成员仍为0。
-        //part所在的硬盘作为全局数组channels的内嵌成员，全局变量会被初始化为0
-        //下面处理存在的分区
-        //分区 part 中任意成员的值都会是0，只是我们这里用sec_cnt来判断而已
-        if (part->sec_cnt != 0) {   //判断分区是否存在，如果分区存在
-          memset(sb_buf, 0, SECTOR_SIZE);
-          ide_read(hd, part->start_lba + 1, sb_buf, 1);
-          //只支持自己的文件系统，若磁盘上已经有文件系统就不再格式化了
-          if (sb_buf->magic == 0x19590318) {
-            printk("%s has filesystem\n", part->name);
-          } else {    //其他文件系统不支持，一律按无文件系统处理
-            printk("formatting %s`s partition %s......\n", hd->name, part->name);
-            partition_format(part);
-          }
-        }
-        part_idx++;
-        part++;     //下一分区
-      }
-      dev_no++;     //下一磁盘
-    }
-    channel_no++;   //下一通道
-  }
-  sys_free(sb_buf);
-
-  //确定默认操作的分区
-  char default_part[8] = "sdb1";
-  //挂载分区
-  list_traversal(&partition_list, mount_partition, (int)default_part);
 }
 
 //将最上层路径名称解析出来
@@ -308,7 +253,7 @@ int32_t path_depth_cnt(char *pathname) {
 //因此所有调用search_file的主调函数记得释放目录searched_record->parent_dir，避免内存泄漏。
 static int search_file(const char *pathname, struct path_search_record *searched_record) {
   //如果待查找的是根目录，为避免下面无用的查找，直接返回已知根目录信息
-  if (!strcmp(pathname, "/") || !strcmp(pathname, "/.") || strcmp(pathname, "/..")) {
+  if (!strcmp(pathname, "/") || !strcmp(pathname, "/.") || !strcmp(pathname, "/..")) {
     searched_record->parent_dir = &root_dir;
     searched_record->file_type = FT_DIRECTORY;
     searched_record->searched_path[0] = 0;      //搜索路径置空
@@ -318,15 +263,16 @@ static int search_file(const char *pathname, struct path_search_record *searched
   uint32_t path_len = strlen(pathname);
   //保证pathname至少是这样的路径/x，且小于最大长度
   ASSERT(pathname[0] == '/' && path_len > 1 && path_len < MAX_PATH_LEN);
-  char* sub_path = (char*)pathname;
-  struct dir* parent_dir = &root_dir;	
-  struct dir_entry dir_e;
+  char* sub_path = (char*)pathname;   //指向路径名pathname
+  struct dir* parent_dir = &root_dir;	  //指向根目录
+  struct dir_entry dir_e;     //声明了目录项dir_e
 
   //记录路径解析出来的各级名称,如路径"/a/b/c",数组name每次的值分别是"a","b","c"
   char name[MAX_FILE_NAME_LEN] = {0};   //用来存储路径解析中的各层路径名
 
   searched_record->parent_dir = parent_dir;
   searched_record->file_type = FT_UNKNOWN;
+  //根目录开始解析路径，因此初始化parent_inode_no为根目录的inode编号0。
   uint32_t parent_inode_no = 0;   //父目录的inode号
   
   //路径解析，path_parse返回后，最上层的路径名会存储在name中，返回值存入sub_path
@@ -355,7 +301,7 @@ static int search_file(const char *pathname, struct path_search_record *searched
         //将父目录的inode编号赋值给变量parent_inode_no，此变量用于备份父目录的inode编号，
         //它会在最后一级路径为目录的情况下用到
         parent_inode_no = parent_dir->inode->i_no;
-        dir_close(parent_dir);    //关闭父目录
+        dir_close(parent_dir);    //关闭父目录  第一次关闭根目录，第二次关闭上一次打开的那个目录
         //把目录name打开，重新为parent_dir赋值
         parent_dir = dir_open(cur_part, dir_e.i_no);  //更新父目录
         searched_record->parent_dir = parent_dir;     //更新搜索记录中的父目录
@@ -365,14 +311,19 @@ static int search_file(const char *pathname, struct path_search_record *searched
         return dir_e.i_no;      //回普通文件name的inode编号
       }
     } else {		   //若找不到,则返回-1
-  //找不到目录项时,要留着parent_dir不要关闭,若是创建新文件的话需要在parent_dir中创建
-        return -1;
+      //找不到目录项时,要留着parent_dir不要关闭,若是创建新文件的话需要在parent_dir中创建
+      return -1;
     }
   }
 
   //执行到此
   //（1）路径pathname已经被完整地解析过了，各级都存在。
   //（2）pathname的最后一层路径不是普通文件，而是目录。
+  //结论是待查找的目标是目录，如“/a/b/c”，c是目录，不是普通文件。此时searched_record->parent_dir
+  //是路径pathname中的最后一级目录c，并不是倒数第二级的父目录b，我们在任何时候都应该使
+  //searched_record->parent_dir是被查找目标的直接父目录，也就是说，无论目标是普通文件，还是目录，
+  //searched_record->parent_dir中记录的都应该是目录b。
+  //因此我们需要把searched_record->parent_dir重新更新为父目录b。
 
   //执行到此,必然是遍历了完整路径并且查找的文件或目录只有同名目录存在
   dir_close(searched_record->parent_dir);	      
@@ -381,4 +332,144 @@ static int search_file(const char *pathname, struct path_search_record *searched
   searched_record->parent_dir = dir_open(cur_part, parent_inode_no);	   
   searched_record->file_type = FT_DIRECTORY;
   return dir_e.i_no;    //返回目录的inode编号
+}
+
+//打开或创建文件成功后，返回文件描述符，否则返回-1
+//接受2个参数，pathname是待打开的文件，其为绝对路径，flags是打开标识，
+//其值便是之前在fs.h头文件中提前放入的enum oflags。函数功能是打开或创建文件成功后，
+//返回文件描述符，即pcb中fd_table中的下标，否则返回−1。
+int32_t sys_open(const char *pathname, uint8_t flags) {
+  //对目录要用dir_open，这里只有open文件
+  //sys_open只支持文件打开，不支持目录打开，因此程序开头判断pathname是否为目录
+  if (pathname[strlen(pathname) - 1] == '/') {
+    printk("can`t open a directory %s\n",pathname);
+    return -1;
+  }
+  //限制flags的值在O_RDONLY | O_WRONLY | O_RDWR | O_CREAT之内
+  ASSERT(flags <= 7);
+  int32_t fd = -1;//默认为找不到
+  //用来记录文件查找时所遍历过的目录,可以通过该路径的长度来判断查找是否成功。举个例子，
+  //若查找目标文件c，它的绝对路径是“/a/b/c”，查找时若发现b目录不存在，
+  //存入path_search_ record.searched_path的内容便是“/a/b”，
+  //若按照此路径找到了c，path_search_record.searched_path的值便是完整路径“/a/b/c”。
+  struct path_search_record searched_record;
+  memset(&searched_record, 0, sizeof(struct path_search_record)); //将searched_record清0
+
+  //记录目录深度，帮助判断中间某个目录不存在的情况
+  uint32_t pathname_depth = path_depth_cnt((char *)pathname);
+
+  //先检查文件是否存在
+  int inode_no = search_file(pathname, &searched_record);
+  bool found = inode_no != -1 ? true : false;
+
+  if (searched_record.file_type == FT_DIRECTORY) {
+    printk("can`t open a direcotry with open(), use opendir() to instead\n");
+    dir_close(searched_record.parent_dir);
+    return -1;
+  }
+
+  //求访问过的路径深度  
+  uint32_t path_searched_depth = path_depth_cnt(searched_record.searched_path);
+
+  //先判断是否把pathname的各层目录都访问到了，即是否在某个中间目录就失败了
+  if (pathname_depth != path_searched_depth) {
+    //说明并没有访问到全部的路径，某个中间目录是不存在的
+    printk("cannot access %s: Not a directory, subpath %s is’t exist\n", \
+    pathname, searched_record.searched_path);
+    dir_close(searched_record.parent_dir);
+    return -1;
+  }
+
+  //若是在最后一个路径上没找到，并且并不是要创建文件，直接返回-1
+  if (!found && !(flags & O_CREAT)) {   //若目标文件未找到，并且flags不包含O_CREAT
+    printk("in path %s, file %s is`t exist\n",searched_record.searched_path, \
+    (strrchr(searched_record.searched_path, '/') + 1));
+    dir_close(searched_record.parent_dir);
+    return -1;
+  }
+  //若找到了文件并且flags包含O_CREAT，这说明想创建的文件名已存在，相同目录下
+  //不允许同名文件存在，因此输出报错并关闭目录，返回−1。 
+  else if(found && flags & O_CREAT) {   //若要创建的文件已存在
+    printk("%s has already exist!\n", pathname);
+    dir_close(searched_record.parent_dir);
+    return -1;
+  }
+
+  switch (flags & O_CREAT) {
+    case O_CREAT:
+      printk("creating file\n");
+      fd = file_create(searched_record.parent_dir, (strrchr(pathname, '/') + 1), flags);
+      dir_close(searched_record.parent_dir);
+      
+    //其余为打开文件
+  }
+
+  //此fd是指任务pcb->fd_table数组中的元素下标，并不是指全局file_table中的下标
+  return fd;
+}
+
+
+//在磁盘上搜索文件系统，若没有则格式化分区创建文件系统
+void filesys_init() {
+  uint8_t channel_no = 0, dev_no, part_idx = 0;
+
+  //sb_buf用来存储从硬盘上读入的超级块
+  struct super_block *sb_buf = (struct super_block *)sys_malloc(SECTOR_SIZE);
+
+  if (sb_buf == NULL) {
+    PANIC("alloc memory failed!\n");
+  }
+  printk("searching filesystem......\n");
+
+  //通过三层循环完成的，最外层循环用来遍历通道，中间层循环用来遍历通道中的硬盘，最内层循环用来遍历硬盘上的所有分区
+  while (channel_no < channel_cnt) {
+    dev_no = 0;
+    while (dev_no < 2) {
+      if (dev_no == 0) {  //跨过裸盘os.img
+        dev_no++;
+        continue;
+      }
+      struct disk *hd = &(channels[channel_no].devices[dev_no]);
+      struct partition *part = hd->prim_parts;
+      while (part_idx < 12) {   //4个主分区+8个逻辑
+        if (part_idx == 4) {    //开始处理逻辑分区
+          part = hd->logic_parts;
+        }
+        //channels数组是全局变量，默认值为0，disk属于其嵌套结构，partition又为disk的嵌套结构，
+        //因此partition中的成员默认也为0。若partition未初始化，则partition中的成员仍为0。
+        //part所在的硬盘作为全局数组channels的内嵌成员，全局变量会被初始化为0
+        //下面处理存在的分区
+        //分区 part 中任意成员的值都会是0，只是我们这里用sec_cnt来判断而已
+        if (part->sec_cnt != 0) {   //判断分区是否存在，如果分区存在
+          memset(sb_buf, 0, SECTOR_SIZE);
+          ide_read(hd, part->start_lba + 1, sb_buf, 1);
+          //只支持自己的文件系统，若磁盘上已经有文件系统就不再格式化了
+          if (sb_buf->magic == 0x19590318) {
+            printk("%s has filesystem\n", part->name);
+          } else {    //其他文件系统不支持，一律按无文件系统处理
+            printk("formatting %s`s partition %s......\n", hd->name, part->name);
+            partition_format(part);
+          }
+        }
+        part_idx++;
+        part++;     //下一分区
+      }
+      dev_no++;     //下一磁盘
+    }
+    channel_no++;   //下一通道
+  }
+  sys_free(sb_buf);
+
+  //确定默认操作的分区
+  char default_part[8] = "sdb1";
+  //挂载分区
+  list_traversal(&partition_list, mount_partition, (int)default_part);
+  //将当前分区的根目录打开
+  open_root_dir(cur_part);
+
+  //初始化文件表
+  uint32_t fd_idx = 0;
+  while (fd_idx < MAX_FILE_OPEN) {
+    file_table[fd_idx++].fd_inode = NULL;
+  }
 }
