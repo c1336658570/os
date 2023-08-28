@@ -10,7 +10,6 @@
 #include "memory.h"
 #include "fs.h"
 #include "string.h"
-#include "super_block.h"
 
 void k_thread_a(void*);
 void k_thread_b(void*);
@@ -24,11 +23,19 @@ int main(void) {
    process_execute(u_prog_b, "u_prog_b");
    thread_start("k_thread_a", 31, k_thread_a, "I am thread_a");
    thread_start("k_thread_b", 31, k_thread_b, "I am thread_b");
-   printf("/file1 delete %s!\n", sys_unlink("/file1") == 0 ? "done" : "fail");
-   printf("a%d\n", cur_part->sb->block_bitmap_lba);
-   printf("b%d\n", cur_part->sb->inode_bitmap_lba);
-   printf("c%d\n", cur_part->sb->inode_table_lba);
-   printf("d%d\n", cur_part->sb->data_start_lba);
+   printf("/dir1/subdir1 create %s!\n", sys_mkdir("/dir1/subdir1") == 0 ? "done" : "fail");
+   printf("/dir1 create %s!\n", sys_mkdir("/dir1") == 0 ? "done" : "fail");
+   printf("now, /dir1/subdir1 create %s!\n", sys_mkdir("/dir1/subdir1") == 0 ? "done" : "fail");
+   int fd = sys_open("/dir1/subdir1/file2", O_CREAT|O_RDWR);
+   if (fd != -1) {
+      printf("/dir1/subdir1/file2 create done!\n");
+      sys_write(fd, "Catch me if you can!\n", 21);
+      sys_lseek(fd, 0, SEEK_SET);
+      char buf[32] = {0};
+      sys_read(fd, buf, 21); 
+      printf("/dir1/subdir1/file2 says:\n%s", buf);
+      sys_close(fd);
+   }
    while(1);
    return 0;
 }
