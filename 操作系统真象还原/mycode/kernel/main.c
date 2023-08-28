@@ -10,6 +10,7 @@
 #include "memory.h"
 #include "fs.h"
 #include "string.h"
+#include "super_block.h"
 
 void k_thread_a(void*);
 void k_thread_b(void*);
@@ -23,41 +24,11 @@ int main(void) {
    process_execute(u_prog_b, "u_prog_b");
    thread_start("k_thread_a", 31, k_thread_a, "I am thread_a");
    thread_start("k_thread_b", 31, k_thread_b, "I am thread_b");
-
-   uint32_t fd = sys_open("/file1", O_RDWR);
-   printf("open /file1, fd:%d\n", fd);
-   char buf[64] = {0};
-   int read_bytes = sys_read(fd, buf, 18);
-   printf("1_ read %d bytes:\n%s\n", read_bytes, buf);
-
-   memset(buf, 0, 64);
-   read_bytes = sys_read(fd, buf, 64);
-   printf("2_ read %d bytes:\n%s", read_bytes, buf);
-
-   memset(buf, 0, 64);
-   read_bytes = sys_read(fd, buf, 6);
-   printf("3_ read %d bytes:\n%s", read_bytes, buf);
-
-   printf("________  SEEK_SET 0  ________\n");
-   sys_lseek(fd, 0, SEEK_SET);
-   memset(buf, 0, 64);
-   read_bytes = sys_read(fd, buf, 24);
-   printf("4_ read %d bytes:\n%s", read_bytes, buf);
-   memset(buf, 0, 64);
-   read_bytes = sys_read(fd, buf, 64);
-   printf("5_ read %d bytes:\n%s", read_bytes, buf);
-  
-   sys_lseek(fd, -60, SEEK_END);
-   memset(buf, 0, 64);
-   read_bytes = sys_read(fd, buf, 64);
-   printf("6_ read %d bytes:\n%s", read_bytes, buf);
-
-   sys_lseek(fd, -60, SEEK_CUR);
-   memset(buf, 0, 64);
-   read_bytes = sys_read(fd, buf, 64);
-   printf("7_ read %d bytes:\n%s", read_bytes, buf);
-   
-   sys_close(fd);
+   printf("/file1 delete %s!\n", sys_unlink("/file1") == 0 ? "done" : "fail");
+   printf("a%d\n", cur_part->sb->block_bitmap_lba);
+   printf("b%d\n", cur_part->sb->inode_bitmap_lba);
+   printf("c%d\n", cur_part->sb->inode_table_lba);
+   printf("d%d\n", cur_part->sb->data_start_lba);
    while(1);
    return 0;
 }

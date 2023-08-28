@@ -499,6 +499,61 @@ int32_t sys_lseek(int32_t fd, int32_t offset, uint8_t whence) {
   return pf->fd_pos;
 }
 
+//删除文件（非目录），成功返回0，失败返回-1
+//接受1个参数，文件绝对路径名pathname，删除文件（非目录），成功返回0，失败返回−1。
+int32_t sys_unlink(const char *pathname) {
+  ASSERT(strlen(pathname) < MAX_PATH_LEN);
+
+  //先检查待删除的文件是否存在
+  struct path_search_record searched_record;
+  memset(&searched_record, 0, sizeof(struct path_search_record));
+  //检查文件pathname是否存在，如果不存在，则输出提示并返回−1。
+  int inode_no = search_file(pathname, &searched_record);
+  ASSERT(inode_no != 0);
+  if (inode_no == -1) {
+    printk("file %s not found!\n", pathname);
+    dir_close(searched_record.parent_dir);
+    return -1;
+  }
+  //若只存在同名的目录，提示不能用unlink删除目录，只能用rmdir函数（将来实现）并返回−1。
+  if (searched_record.file_type == FT_DIRECTORY) {
+    printk("can't delete directory with unlink(),use rmdir() to instead\n");
+    dir_close(searched_record.parent_dir);
+    return -1;
+  }
+
+  //检查是否在已打开文件列表（文件表）中
+  //文件表中检索待删除的文件，如果文件在文件表中存在，这说明该文件正被打开，不能删除。
+  uint32_t file_idx = 0;
+  while (file_idx < MAX_FILE_OPEN) {
+    if (file_table[file_idx].fd_inode != NULL && (uint32_t)inode_no == file_table[file_idx].fd_inode->i_no) {
+      break;
+    }
+    file_idx++;
+  }
+  if (file_idx < MAX_FILE_OPEN) {
+    dir_close(searched_record.parent_dir);
+    printk("file %s is in use, not allow to delete!\n", pathname);
+    return -1;
+  }
+  ASSERT(file_idx == MAX_FILE_OPEN);
+
+  //为delete_dir_entry申请缓冲区
+  void *io_buf = sys_malloc(SECTOR_SIZE + SECTOR_SIZE); //为即将调用的delete_dir_entry函数申请缓冲区
+  if (io_buf == NULL) {
+    dir_close(searched_record.parent_dir);
+    printk("sys_unlink: malloc for io_buf failed\n");
+    return -1;
+  }
+
+  struct dir *parent_dir = searched_record.parent_dir;
+  delete_dir_entry(cur_part, parent_dir, inode_no, io_buf);   //调用函数delete_dir_entry删除目录项
+  inode_release(cur_part, inode_no);    //调用inode_release释放inode
+  sys_free(io_buf);
+  dir_close(searched_record.parent_dir);    //调用dir_close关闭pathname所在的目录
+  return 0;       //成功删除文件
+}
+
 //在磁盘上搜索文件系统，若没有则格式化分区创建文件系统
 void filesys_init() {
   uint8_t channel_no = 0, dev_no, part_idx = 0;
