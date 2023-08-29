@@ -464,6 +464,8 @@ int32_t sys_read(int32_t fd, void *buf, uint32_t count) {
   if (fd < 0 || fd == stdout_no || fd == stderr_no) {
     printk("sys_read: fd error\n");
   } else if(fd == stdin_no) {
+    //若发现fd是stdin_no，下面就通过while和ioq_getchar(&kbd_buf)，
+    //每次从键盘缓冲区kbd_buf中获取1个字符，直到获取了count个字符为止。
     char *buffer = buf;
     uint32_t bytes_read = 0;
     while (bytes_read < count) {
@@ -943,6 +945,11 @@ int32_t sys_stat(const char *path, struct stat *buf) {
   }
   dir_close(searched_record.parent_dir);
   return ret;
+}
+
+//向屏幕输出一个字符
+void sys_putchar(char char_asci) {
+   console_put_char(char_asci);
 }
 
 //在磁盘上搜索文件系统，若没有则格式化分区创建文件系统
