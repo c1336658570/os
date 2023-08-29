@@ -6,6 +6,7 @@
 */
 
 #include "syscall.h"
+#include "thread.h"
 
 //无参数的系统调用
 //大括号中最后一个语句的值会作为大括号代码块的返回值，而且要在最后一个语句后添加分号';'，否则编译时会报错。
@@ -73,4 +74,9 @@ void *malloc(uint32_t size) {
 //释放ptr指向的内存
 void free(void *ptr) {
   _syscall1(SYS_FREE, ptr);
+}
+
+//派生子进程,返回子进程pid
+pid_t fork(void){
+   return _syscall0(SYS_FORK);
 }
