@@ -389,6 +389,7 @@ struct dir_entry *dir_read(struct dir *dir) {
   uint32_t dir_entry_size = cur_part->sb->dir_entry_size;
   uint32_t dir_entrys_per_sec = SECTOR_SIZE / dir_entry_size;   //1扇区内可容纳的目录项个数
   //在目录大小内遍历
+  //因为此目录内可能删除了某些文件或子目录,所以要遍历所有块 
   while (dir->dir_pos < dir_inode->i_size) {  
     //dir_pos 是目录的“游标”，用于记录下一个读写对象的地址，dir_pos用于指向目录中某个目录项的地址。
     if (dir->dir_pos >= dir_inode->i_size) {  //已经遍历了所有的目录项，直接返回NULL
