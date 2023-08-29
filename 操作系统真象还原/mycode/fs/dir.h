@@ -13,6 +13,7 @@
 struct dir {
   struct inode *inode;    //用于指向内存中inode，该inode必然是在“已打开的inode队列”
   //用于遍历目录时记录“游标”在目录中的偏移，也就是目录项的偏移量，dir_pos大小应为目录项大小的整数倍
+  //dir_pos 是目录的“游标”，用于记录下一个读写对象的地址，dir_pos用于指向目录中某个目录项的地址。
   uint32_t dir_pos;       //记录在目录内的偏移
   //用于目录的数据缓存，如读取目录时，用来存储返回的目录项
   uint8_t dir_buf[512];   //目录的数据缓存
@@ -33,5 +34,6 @@ bool search_dir_entry(struct partition* part, struct dir* pdir, const char* name
 void create_dir_entry(char* filename, uint32_t inode_no, uint8_t file_type, struct dir_entry* p_de);
 bool sync_dir_entry(struct dir* parent_dir, struct dir_entry* p_de, void* io_buf);
 bool delete_dir_entry(struct partition* part, struct dir* pdir, uint32_t inode_no, void* io_buf);
+struct dir_entry* dir_read(struct dir* dir);
 
 #endif

@@ -8,9 +8,8 @@
 #include "syscall.h"
 #include "stdio.h"
 #include "memory.h"
+#include "dir.h"
 #include "fs.h"
-#include "string.h"
-#include "super_block.h"
 
 void k_thread_a(void*);
 void k_thread_b(void*);
@@ -18,22 +17,36 @@ void u_prog_a(void);
 void u_prog_b(void);
 
 int main(void) {
-   put_str("I am kernel\n");
-   init_all();
-   process_execute(u_prog_a, "u_prog_a");
-   process_execute(u_prog_b, "u_prog_b");
-   thread_start("k_thread_a", 31, k_thread_a, "I am thread_a");
-   thread_start("k_thread_b", 31, k_thread_b, "I am thread_b");
-   printf("/file1 delete %s!\n", sys_unlink("/file1") == 0 ? "done" : "fail");
-   printf("a%d\n", cur_part->sb->block_bitmap_lba);
-   printf("b%d\n", cur_part->sb->inode_bitmap_lba);
-   printf("c%d\n", cur_part->sb->inode_table_lba);
-   printf("d%d\n", cur_part->sb->data_start_lba);
-   while(1);
-   return 0;
+	put_str("I am kernel\n");
+	init_all();
+	/********  测试代码  ********/
+	struct dir* p_dir = sys_opendir("/dir1/subdir1");
+	if (p_dir) {
+		printf("/dir1/subdir1 open done!\ncontent:\n");
+		char* type = NULL;
+		struct dir_entry* dir_e = NULL;
+		while((dir_e = sys_readdir(p_dir))) { 
+			if (dir_e->f_type == FT_REGULAR) {
+				type = "regular";
+			} else {
+				type = "directory";
+			}
+			printf("      %s   %s\n", type, dir_e->filename);
+		}
+		if (sys_closedir(p_dir) == 0) {
+			printf("/dir1/subdir1 close done!\n");
+		} else {
+			printf("/dir1/subdir1 close fail!\n");
+		}
+	} else {
+		printf("/dir1/subdir1 open fail!\n");
+	}
+	/********  测试代码  ********/
+	while(1);
+	return 0;
 }
 
-/* 在线程中运行的函数 */
+//在线程中运行的函数
 void k_thread_a(void* arg) {     
    void* addr1 = sys_malloc(256);
    void* addr2 = sys_malloc(255);
@@ -54,7 +67,7 @@ void k_thread_a(void* arg) {
    while(1);
 }
 
-/* 在线程中运行的函数 */
+//在线程中运行的函数
 void k_thread_b(void* arg) {     
    void* addr1 = sys_malloc(256);
    void* addr2 = sys_malloc(255);
@@ -75,7 +88,7 @@ void k_thread_b(void* arg) {
    while(1);
 }
 
-/* 测试用户进程 */
+//测试用户进程
 void u_prog_a(void) {
    void* addr1 = malloc(256);
    void* addr2 = malloc(255);
@@ -90,7 +103,7 @@ void u_prog_a(void) {
    while(1);
 }
 
-/* 测试用户进程 */
+//测试用户进程
 void u_prog_b(void) {
    void* addr1 = malloc(256);
    void* addr2 = malloc(255);

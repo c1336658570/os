@@ -554,6 +554,193 @@ int32_t sys_unlink(const char *pathname) {
   return 0;       //成功删除文件
 }
 
+//创建目录所涉及的工作包括。
+//（1）确认待创建的新目录在文件系统上不存在。
+//（2）为新目录创建inode。
+//（3）为新目录分配1个块存储该目录中的目录项。
+//（4）在新目录中创建两个目录项“.”和“..”，这是每个目录都必须存在的两个目录项。
+//（5）在新目录的父目录中添加新目录的目录项。
+//（6）将以上资源的变更同步到硬盘。
+
+//创建目录pathname,成功返回0,失败返回-1
+//支持1个参数，路径名pathname，功能是创建目录pathname，成功返回0，失败返回−1。
+int32_t sys_mkdir(const char* pathname) {
+  //创建目录也是由多个步骤完成的，因此创建目录的工作是个事务，具有原子性，即要么所有步骤都完成，要
+  //么一个都不做，若其中某个步骤失败，必须将之前完成的操作回滚到之前的状态。
+  uint8_t rollback_step = 0;      //用于操作失败时回滚各资源状态
+  void *io_buf = sys_malloc(SECTOR_SIZE * 2);   //申请2扇区大小的缓冲区给io_buf
+  if (io_buf == NULL) {
+    printk("sys_mkdir: sys_malloc for io_buf failed\n");
+    return -1;
+  }
+
+  struct path_search_record searched_record;
+  memset(&searched_record, 0, sizeof(struct path_search_record));
+  int inode_no = -1;
+  //检索pathname，如果找到同名文件pathname，search_file会返回其inode编号，否则会返回−1
+  inode_no = search_file(pathname, &searched_record);
+  if (inode_no != -1) {     //如果找到了同名目录或文件,失败返回
+    printk("sys_mkdir: file or directory %s exist!\n", pathname);
+    rollback_step = 1;
+    goto rollback;
+  } else {	        //若未找到,也要判断是在最终目录没找到还是某个中间目录不存在
+    //如果未找到同名文件，这也不能贸然创建目录，因为待创建的目录有可能并不是在最后一级目录中不存在，
+    //很可能是某个中间路径就不存在，比如创建目录“/a/b”，有可能a目录就不存在。
+    //对于中间目录不存在的情况，我们就像Linux一样，给出提示后拒绝创建目录
+    uint32_t pathname_depth = path_depth_cnt((char*)pathname);
+    uint32_t path_searched_depth = path_depth_cnt(searched_record.searched_path);
+    //先判断是否把pathname的各层目录都访问到了,即是否在某个中间目录就失败了
+    if (pathname_depth != path_searched_depth) {  //说明并没有访问到全部的路径,某个中间目录是不存在的
+      printk("sys_mkdir: can`t access %s, subpath %s is`t exist\n", pathname, searched_record.searched_path);
+      rollback_step = 1;
+      goto rollback;
+    }
+  }
+
+  struct dir *parent_dir = searched_record.parent_dir;  //指向被创建目录所在的父目录
+  //目录名称后可能会有字符'/',所以最好直接用searched_record.searched_path,无'/'
+  char *dirname = strrchr(searched_record.searched_path, '/') + 1;
+
+  inode_no = inode_bitmap_alloc(cur_part);    //在inode位图中分配inode
+  if (inode_no == -1) {
+    printk("sys_mkdir: allocate inode failed\n");
+    rollback_step = 1;
+    goto rollback;
+  }
+
+  struct inode new_dir_inode;
+  inode_init(inode_no, &new_dir_inode);   //初始化i结点
+
+  uint32_t block_bitmap_idx = 0;    //用来记录block对应于block_bitmap中的索引
+  int32_t block_lba = -1;
+  //为目录分配一个块,用来写入目录.和..
+  block_lba = block_bitmap_alloc(cur_part);   //分配1个块
+  if (block_lba == -1) {
+    printk("sys_mkdir: block_bitmap_alloc for create directory failed\n");
+    rollback_step = 2;
+    goto rollback;
+  }
+  new_dir_inode.i_sectors[0] = block_lba;   //将块地址写入目录inode的i_sectors[0]中
+  //每分配一个块就将位图同步到硬盘
+  block_bitmap_idx = block_lba - cur_part->sb->data_start_lba;
+  ASSERT(block_bitmap_idx != 0);
+  bitmap_sync(cur_part, block_bitmap_idx, BLOCK_BITMAP);  //将块位图同步到硬盘
+  
+  //将当前目录的目录项'.'和'..'写入目录
+  memset(io_buf, 0, SECTOR_SIZE * 2);   //清空io_buf
+  struct dir_entry* p_de = (struct dir_entry*)io_buf;
+  
+  //新建目录项“.”和“..”并同步到硬盘
+
+  //初始化当前目录"."
+  memcpy(p_de->filename, ".", 1);
+  p_de->i_no = inode_no ;
+  p_de->f_type = FT_DIRECTORY;
+
+  p_de++;
+  //初始化当前目录".."
+  memcpy(p_de->filename, "..", 2);
+  p_de->i_no = parent_dir->inode->i_no;
+  p_de->f_type = FT_DIRECTORY;
+  ide_write(cur_part->my_disk, new_dir_inode.i_sectors[0], io_buf, 1);
+
+  new_dir_inode.i_size = 2 * cur_part->sb->dir_entry_size;    //初始化目录的尺寸
+
+  //在父目录中添加自己的目录项
+  struct dir_entry new_dir_entry;
+  memset(&new_dir_entry, 0, sizeof(struct dir_entry));
+  //初始化目录项的内容到new_dir_entry中
+  create_dir_entry(dirname, inode_no, FT_DIRECTORY, &new_dir_entry);
+  memset(io_buf, 0, SECTOR_SIZE * 2); //清空io_buf
+  //把dirname的目录项new_dir_entry写入父目录parent_dir中。
+  if (!sync_dir_entry(parent_dir, &new_dir_entry, io_buf)) {  //sync_dir_entry中将block_bitmap通过bitmap_sync同步到硬盘
+    printk("sys_mkdir: sync_dir_entry to disk failed!\n");
+    rollback_step = 2;
+    goto rollback;
+  }
+
+  //父目录的inode同步到硬盘
+  memset(io_buf, 0, SECTOR_SIZE * 2);
+  inode_sync(cur_part, parent_dir->inode, io_buf);
+
+  //将新创建目录的inode同步到硬盘
+  memset(io_buf, 0, SECTOR_SIZE * 2);
+  inode_sync(cur_part, &new_dir_inode, io_buf);
+
+  //将inode位图同步到硬盘
+  bitmap_sync(cur_part, inode_no, INODE_BITMAP);
+
+  sys_free(io_buf);   //释放缓冲区io_buf
+
+  //关闭所创建目录的父目录
+  dir_close(searched_record.parent_dir);
+  return 0;
+
+//创建文件或目录需要创建相关的多个资源,若某步失败则会执行到下面的回滚步骤
+rollback:     //因为某步骤操作失败而回滚
+  switch (rollback_step) {
+    case 2:
+      //恢复inode位图
+      bitmap_set(&cur_part->inode_bitmap, inode_no, 0); //如果新文件的inode创建失败,之前位图中分配的inode_no也要恢复 
+    case 1:
+      //关闭所创建目录的父目录
+      dir_close(searched_record.parent_dir);
+      break;
+  }
+  sys_free(io_buf);
+  return -1;
+}
+
+//目录打开成功后返回目录指针，失败返回NULL
+//接受一个参数name，功能是打开目录name，成功后返回目录指针，失败返回NULL。
+struct dir *sys_opendir(const char *name) {
+  //根目录的形式有：“/”、“/.”、“/..”，当然按理说“/./..”、“/../..”等都能够表示根目录，
+  //但毕竟实属“罕见”，因此暂不考虑它们。
+  ASSERT(strlen(name) < MAX_PATH_LEN);
+  //如果是根目录'/'，直接返回&root_dir
+  if (name[0] == '/' && (name[1] == 0 || name[0] == '.')) {
+    return &root_dir;
+  }
+
+  //先检查待打开的目录是否存在
+  struct path_search_record searched_record;
+  memset(&searched_record, 0, sizeof(struct path_search_record));
+  int inode_no = search_file(name, &searched_record);
+  struct dir *ret = NULL;
+  if (inode_no == -1) {   //如果找不到目录，提示不存在的路径
+    printk("In %s, sub path %s not exist\n", name, searched_record.searched_path);
+  } else {
+    if (searched_record.file_type == FT_REGULAR) {
+      printk("%s is regular file!\n", name);
+    } else if (searched_record.file_type == FT_DIRECTORY) {
+      ret = dir_open(cur_part, inode_no);
+    }
+  }
+  dir_close(searched_record.parent_dir);
+  return ret;
+}
+
+//成功关闭目录p_dir返回0，失败返回-1
+int32_t sys_closedir(struct dir *dir) {
+  int32_t ret = -1;
+  if (dir != NULL) {
+    dir_close(dir);
+    ret = 0;
+  }
+  return ret;
+}
+
+//读取目录dir的1个目录项，成功后返回其目录项地址，到目录尾时或出错时返回NULL
+struct dir_entry *sys_readdir(struct dir *dir) {
+  ASSERT(dir != NULL);
+  return dir_read(dir);
+}
+
+//把目录dir的指针dir_pos置0
+void sys_rewinddir(struct dir *dir) {
+  dir->dir_pos = 0;
+}
+
 //在磁盘上搜索文件系统，若没有则格式化分区创建文件系统
 void filesys_init() {
   uint8_t channel_no = 0, dev_no, part_idx = 0;
