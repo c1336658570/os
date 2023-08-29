@@ -424,3 +424,36 @@ struct dir_entry *dir_read(struct dir *dir) {
   }
   return NULL;
 }
+
+//判断目录是否为空
+//dir_is_empty接受1个参数，目录指针dir，功能是判断目录dir是否为空
+bool dir_is_empty(struct dir *dir) {
+  struct inode *dir_inode = dir->inode;
+  //若目录下只有.和..这两个目录项，则目录为空
+  return (dir_inode->i_size == cur_part->sb->dir_entry_size * 2);
+}
+
+//在父目录parent_dir中删除child_dir
+//接受2个参数，父目录指针parent_dir和子目录指针child_dir，
+//功能是在父目录parent_dir中删除child_dir。成功删除则返回0，否则返回−1。
+int32_t dir_remove(struct dir *parent_dir, struct dir *child_dir) {
+  struct inode *child_dir_inode = child_dir->inode;
+  //空目录只在inode->i_sectors[0]中有扇区，其他扇区都应该为空
+  int32_t block_idx = 1;
+  while (block_idx < 13) {
+    ASSERT(child_dir_inode->i_sectors[block_idx] == 0);
+    block_idx++;
+  }
+  void *io_buf = sys_malloc(SECTOR_SIZE * 2);
+  if (io_buf == NULL) {
+    printk("dir_remove: malloc for io_buf failed\n");
+    return -1;
+  }
+  //在父目录parent_dir中删除子目录child_dir对应的目录项
+  delete_dir_entry(cur_part, parent_dir, child_dir_inode->i_no, io_buf);
+
+  //回收inode中i_secotrs中所占用的扇区，并同步inode_bitmap和block_bitmap
+  inode_release(cur_part, child_dir_inode->i_no);   //释放子目录的inode
+  sys_free(io_buf);
+  return 0;
+}
