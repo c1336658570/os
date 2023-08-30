@@ -388,6 +388,42 @@ struct dir_entry *dir_read(struct dir *dir) {
   uint32_t cur_dir_entry_pos = 0;   //当前目录项的偏移，此项用来判断是否是之前已经返回过的目录项
   uint32_t dir_entry_size = cur_part->sb->dir_entry_size;
   uint32_t dir_entrys_per_sec = SECTOR_SIZE / dir_entry_size;   //1扇区内可容纳的目录项个数
+
+  //因为此目录内可能删除了某些文件或子目录,所以要遍历所有块
+  while (block_idx < block_cnt) {
+    //dir_pos 是目录的“游标”，用于记录下一个读写对象的地址，dir_pos用于指向目录中某个目录项的地址。
+    if (dir->dir_pos >= dir_inode->i_size) {    //已经遍历了所有的目录项，直接返回NULL
+      return NULL;
+    }
+    if (all_blocks[block_idx] == 0) {  //如果此块地址为0,即空块,继续读出下一块
+      block_idx++;
+      continue;
+    }
+    memset(dir_e, 0, SECTOR_SIZE);
+    ide_read(cur_part->my_disk, all_blocks[block_idx], dir_e, 1);
+    dir_entry_idx = 0;
+    //遍历扇区内所有目录项
+    while (dir_entry_idx < dir_entrys_per_sec) {
+      if ((dir_e + dir_entry_idx)->f_type) {    //如果f_type不等于0,即不等于FT_UNKNOWN
+        //判断是不是最新的目录项,避免返回曾经已经返回过的目录项
+        if (cur_dir_entry_pos < dir->dir_pos) {
+          //若cur_dir_entry_pos小于dir->dir_pos，这说明都是之前返回过的目录项，
+          //因此将cur_dir_entry_pos加上目录项大小，并使目录项索引dir_entry_idx加1后，
+          //跳过当前目录项，直到cur_dir_entry_pos等于dir->dir_pos，这才找到了该返回的目录项
+          cur_dir_entry_pos += dir_entry_size;
+          dir_entry_idx++;
+          continue;
+        }
+        ASSERT(cur_dir_entry_pos == dir->dir_pos);
+        dir->dir_pos += dir_entry_size;   //更新为新位置,即下一个返回的目录项地址
+        return dir_e + dir_entry_idx;
+      }
+      dir_entry_idx++;
+    }
+    block_idx++;
+  }
+  
+  /*
   //在目录大小内遍历
   //因为此目录内可能删除了某些文件或子目录,所以要遍历所有块 
   while (dir->dir_pos < dir_inode->i_size) {  
@@ -423,6 +459,7 @@ struct dir_entry *dir_read(struct dir *dir) {
     }
     block_idx++;
   }
+  */
   return NULL;
 }
 
