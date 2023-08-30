@@ -206,7 +206,7 @@ static void partition_format(struct partition* part) {
 //接受2个参数，pathname是字符串形式的路径及文件名，name_store是主调函数提供的缓冲区，
 //用于存储最上层路径名，此函数功能是将最上层路径名称解析出来存储到name_store中，
 //调用结束后返回除顶层路径之外的子路径字符串的地址
-static char *path_parse(char *pathname, char *name_store) {
+char *path_parse(char *pathname, char *name_store) {
   if (pathname[0] == '/') {   //根目录不需要单独解析
   //路径中出现1个或多个连续的字符'/'，将这些'/'跳过，如"///a/b"
   //任何时候路径中最左边的'/'都表示根目录，根目录不需要单独解析，因为它是已知的，并且已经被提前打开了。
