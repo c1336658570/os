@@ -10,14 +10,16 @@
 #include "memory.h"
 #include "dir.h"
 #include "fs.h"
+#include "assert.h"
+#include "shell.h"
 
 void init(void);
 
 int main(void) {
   put_str("I am kernel\n");
   init_all();
-/********  测试代码  ********/
-/********  测试代码  ********/
+  cls_screen();
+  console_put_str("[cccmmf@cccmmf:/]$ ");
   while(1);
   return 0;
 }
@@ -31,10 +33,10 @@ init是用户级进程，因此咱们要调用process_execute创建进程，但�
 */
 void init(void) {
   uint32_t ret_pid = fork();
-  if(ret_pid) {
-    printf("i am father, my pid is %d, child pid is %d\n", getpid(), ret_pid);
-  } else {
-    printf("i am child, my pid is %d, ret pid is %d\n", getpid(), ret_pid);
+  if(ret_pid) {       //父进程
+    while(1);
+  } else {            //子进程
+    my_shell();
   }
-  while(1);
+  panic("init: should not be here");
 }

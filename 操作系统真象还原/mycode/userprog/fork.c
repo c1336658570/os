@@ -155,12 +155,12 @@ static void update_inode_open_cnts(struct task_struct* thread) {
   //从中获得全局文件表file_table的下标global_fd，通过它在file_table中找到对应的文件结构，使相应文件
   //结构中fd_inode的i_open_cnts加1。
   while (local_fd < MAX_FILES_OPEN_PER_PROC) {
-  global_fd = thread->fd_table[local_fd];
-  ASSERT(global_fd < MAX_FILE_OPEN);
-  if (global_fd != -1) {
-    file_table[global_fd].fd_inode->i_open_cnts++;
-  }
-  local_fd++;
+    global_fd = thread->fd_table[local_fd];
+    ASSERT(global_fd < MAX_FILE_OPEN);
+    if (global_fd != -1) {
+      file_table[global_fd].fd_inode->i_open_cnts++;
+    }
+    local_fd++;
   }
 }
 
