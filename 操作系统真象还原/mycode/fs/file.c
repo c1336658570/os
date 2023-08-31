@@ -136,12 +136,19 @@ int32_t file_create(struct dir *parent_dir, char *filename, uint8_t flag) {
 
   //此inode要从堆中申请内存，不可生成局部变量（函数退出时会释放，
   //因为file_table数组中的文件描述符的inode指针要指向它
+  struct task_struct *cur = running_thread();
+  uint32_t *cur_pagedir_bak = cur->pgdir;
+  cur->pgdir = NULL;
+  //以上三行代码完成后下面分配的内存将位于内核区
   struct inode *new_file_inode = (struct inode *)sys_malloc(sizeof(struct inode));
   if (new_file_inode == NULL) {
     printk("file_create: sys_malloc for inode failded\n");
     rollback_step = 1;
     goto rollback;
   }
+  //恢复pgdir
+  cur->pgdir = cur_pagedir_bak;
+  
   inode_init(inode_no, new_file_inode);
 
   //返回的是file_table数组的下标
@@ -198,7 +205,10 @@ rollback:
       //失败时，将file_table中的相应位清空
       memset(&file_table[fd_idx], 0, sizeof(struct file));
     case 2:
+      cur->pgdir = NULL;
       sys_free(new_file_inode);
+      //恢复pgdir
+      cur->pgdir = cur_pagedir_bak;
     case 1:
       //如果新文件的i结点创建失败，之前位图中分配的inode_no也要恢复
       bitmap_set(&cur_part->inode_bitmap, inode_no, 0);
@@ -458,7 +468,7 @@ int32_t file_write(struct file *file, const void *buf, uint32_t count) {
     }
     memcpy(io_buf + sec_off_bytes, src, chunk_size);
     ide_write(cur_part->my_disk, sec_lba, io_buf, 1);
-    printk("file write at lba 0x%x\n", sec_lba);    //调试,完成后去掉
+    printk("file write at lba 0x%x  ", sec_lba);    //调试,完成后去掉
 
     src += chunk_size;        //将指针推移到下个新数据
     file->fd_inode->i_size += chunk_size;   //更新文件大小
@@ -466,7 +476,15 @@ int32_t file_write(struct file *file, const void *buf, uint32_t count) {
     bytes_written += chunk_size;
     size_left -= chunk_size;
   }
-  inode_sync(cur_part, file->fd_inode, io_buf);   //同步inode
+
+  void *inode_buf = sys_malloc(BLOCK_SIZE * 2);
+  if (inode_buf == NULL) {
+    printk("file_write: sys_malloc for inode_buf failed\n");
+    return -1;
+  }
+  inode_sync(cur_part, file->fd_inode, inode_buf);
+
+  //inode_sync(cur_part, file->fd_inode, io_buf);   //同步inode
   sys_free(all_blocks);
   sys_free(io_buf);
   return bytes_written;
