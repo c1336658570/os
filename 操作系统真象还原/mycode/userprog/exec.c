@@ -93,6 +93,8 @@ static bool segment_load(int32_t fd, uint32_t offset, uint32_t filesz, uint32_t 
 //从文件系统上加载用户程序pathname，成功则返回程序的起始地址，否则返回−1
 //接受1个参数，可执行文件的绝对路径pathname，功能是从文件系统上加载用户程序pathname，成功则返回程序的起始地址，否则返回−1。
 static int32_t load(const char *pathname) {
+  struct task_struct *cur = running_thread();
+
   int32_t ret = -1;
   struct Elf32_Ehdr elf_header;   //elf头
   struct Elf32_Phdr prog_header;  //程序头
@@ -132,6 +134,7 @@ static int32_t load(const char *pathname) {
 
   //遍历所有程序头
   uint32_t prog_idx = 0;
+  
   while (prog_idx < elf_header.e_phnum) {   //段的数量在e_phnum中记录
     memset(&prog_header, 0, prog_header_size);
 
@@ -146,10 +149,12 @@ static int32_t load(const char *pathname) {
 
     //如果是可加载段就调用segment_load加载到内存
     if (PT_LOAD == prog_header.p_type) {
+      //block_desc_init(cur->u_block_desc);
       if (!segment_load(fd, prog_header.p_offset, prog_header.p_filesz, prog_header.p_vaddr)) {
         ret = -1;
         goto done;
       }
+      //block_desc_init(cur->u_block_desc);
     }
     //更新下一个程序头的偏移
     prog_header_offset += elf_header.e_phentsize;
@@ -166,16 +171,20 @@ done:
 //接受2个参数，path是可执行文件的绝对路径，数组argv是传给可执行文件的参数，
 //函数功能是用path指向的程序替换当前进程。函数失败则返回−1，如果成功则没机会返回
 int32_t sys_execv(const char *path, const char *argv[]) {
+  intr_disable();
   uint32_t argc = 0;
   while (argv[argc]) {  //统计出参数个数，存放到变量argc中
     argc++;
   }
+  
+  struct task_struct *cur = running_thread();
+  block_desc_init(cur->u_block_desc);
+
   int32_t entry_point = load(path);
   if (entry_point == -1) {    //若加载失败，则返回−1
     return -1;
   }
 
-  struct task_struct *cur = running_thread();
   //修改进程名
   memcpy(cur->name, path, TASK_NAME_LEN);
   cur->name[TASK_NAME_LEN - 1] = 0;

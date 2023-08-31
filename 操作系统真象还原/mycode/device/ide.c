@@ -164,6 +164,7 @@ static bool busy_wait(struct disk *hd) {
 //接受4个参数，硬盘hd、扇区地址lba、缓冲区buf、扇区数量sec_cnt
 //功能是从硬盘hd的扇区地址lba处读取sec_cnt个扇区到buf
 void ide_read(struct disk *hd, uint32_t lba, void *buf, uint32_t sec_cnt) {
+  struct arena *arena = (struct arena*)((uint32_t)0x804b00c & 0xfffff000);
   ASSERT(lba <= max_lba);
   ASSERT(sec_cnt > 0);
   lock_acquire(&hd->my_channel->lock);

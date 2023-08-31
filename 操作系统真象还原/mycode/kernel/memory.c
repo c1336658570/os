@@ -478,7 +478,7 @@ void sys_free(void *ptr) {
       //先将内存块回收到free_list
       list_append(&a->desc->free_list, &b->free_elem);
       //判断此arena中的内存块是否都是空闲，如果是就释放arena
-      if (++a->cnt == a->desc->blocks_per_arena) {  //表示此arena中的空闲内存块已经达到最大数
+      if (++(a->cnt) == a->desc->blocks_per_arena) {  //表示此arena中的空闲内存块已经达到最大数
         uint32_t block_idx;
         for (block_idx = 0; block_idx < a->desc->blocks_per_arena; block_idx++) {
           struct mem_block *b = arena2block(a, block_idx);
