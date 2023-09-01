@@ -201,7 +201,8 @@ image: mk_dir $(BUILD_DIR)/kernel.bin $(BUILD_DIR)/mbr.bin $(BUILD_DIR)/loader.b
 	dd if=$(BUILD_DIR)/mbr.bin of=os.img bs=512 count=1  conv=notrunc
 	dd if=$(BUILD_DIR)/loader.bin of=os.img bs=512 count=4 seek=2 conv=notrunc
 	dd if=$(BUILD_DIR)/kernel.bin of=os.img bs=512 count=200 seek=9 conv=notrunc
-	dd if=command/prog_no_arg of=/home/cccmmf/操作系统/操作系统真象还原/mycode/os.img bs=512 count=100 seek=300 conv=notrunc
+	dd if=command/prog_no_arg of=/home/cccmmf/操作系统/操作系统真象还原/mycode/os.img bs=512 count=100 seek=220 conv=notrunc
+	dd if=command/prog_arg of=/home/cccmmf/操作系统/操作系统真象还原/mycode/os.img bs=512 count=100 seek=300 conv=notrunc
 
 
 clean:

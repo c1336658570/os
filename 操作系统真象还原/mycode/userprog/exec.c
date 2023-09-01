@@ -171,7 +171,6 @@ done:
 //接受2个参数，path是可执行文件的绝对路径，数组argv是传给可执行文件的参数，
 //函数功能是用path指向的程序替换当前进程。函数失败则返回−1，如果成功则没机会返回
 int32_t sys_execv(const char *path, const char *argv[]) {
-  intr_disable();
   uint32_t argc = 0;
   while (argv[argc]) {  //统计出参数个数，存放到变量argc中
     argc++;

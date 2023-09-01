@@ -12,9 +12,9 @@
 #include "fs.h"
 #include "assert.h"
 #include "shell.h"
-
 #include "ide.h"
 #include "stdio-kernel.h"
+#include "string.h"
 
 void init(void);
 
@@ -23,18 +23,32 @@ int main(void) {
    init_all();
 
 /*************    写入应用程序    *************/
-  uint32_t file_size = 25000;
+  uint32_t file_size = 23120;
   uint32_t sec_cnt = DIV_ROUND_UP(file_size, 512);
   struct disk* sda = &channels[0].devices[0];
   void* prog_buf = sys_malloc(sec_cnt * SECTOR_SIZE);
-  ide_read(sda, 300, prog_buf, sec_cnt);
-  int32_t fd = sys_open("/prog_no_arg", O_CREAT|O_RDWR);
-  if (fd != -1) {
-    if(sys_write(fd, prog_buf, file_size) == -1) {
+  memset(prog_buf, 0, sec_cnt * SECTOR_SIZE);
+  ide_read(sda, 220, prog_buf, sec_cnt);
+  int32_t fd1 = sys_open("/prog_no_arg", O_CREAT|O_RDWR);
+  if (fd1 != -1) {
+    if(sys_write(fd1, prog_buf, file_size) == -1) {
       printk("file write error!\n");
       while(1);
     }
   }
+
+  file_size = 23848;
+  memset(prog_buf, 0, sec_cnt * SECTOR_SIZE);
+  ide_read(sda, 300, prog_buf, sec_cnt);
+  int32_t fd2 = sys_open("/prog_arg", O_CREAT|O_RDWR);
+  if (fd2 != -1) {
+     if(sys_write(fd2, prog_buf, file_size) == -1) {
+        printk("file write error!\n");
+        while(1);
+     }
+  }
+  sys_free(prog_buf);
+
 /*************    写入应用程序结束   *************/
    cls_screen();
    console_put_str("[rabbit@localhost /]$ ");
