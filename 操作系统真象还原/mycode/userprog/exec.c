@@ -154,7 +154,7 @@ static int32_t load(const char *pathname) {
         ret = -1;
         goto done;
       }
-      //block_desc_init(cur->u_block_desc);
+      block_desc_init(cur->u_block_desc);
     }
     //更新下一个程序头的偏移
     prog_header_offset += elf_header.e_phentsize;
