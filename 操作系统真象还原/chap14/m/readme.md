@@ -1,0 +1,1 @@
+修改fs/fs.c,实现sys_getcwd，sys_chdir，修改thread/thread.h，在task_struct中添加当前工作目录的inode号，修改thread/thread.c，在init_thread中初始化当前工作目录的inode号

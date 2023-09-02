@@ -1,0 +1,2 @@
+修改thread/thread.h和thread/thread.c，在task_struct中添加文件描述符数组，在thread_init中初始化该数组
+实现inode操作有关的函数，文件相关的函数，目录相关的函数，路径解析相关的函数，实现文件检索功能，实现file_create，实现sys_open
