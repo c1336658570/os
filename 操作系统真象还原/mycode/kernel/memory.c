@@ -492,6 +492,21 @@ void sys_free(void *ptr) {
   } 
 }
 
+//根据物理页框地址pg_phy_addr在相应的内存池的位图清0，不改动页表
+//接受1个参数，物理页框地址pg_phy_addr，功能是根据物理页框地址pg_phy_addr在相应的内存池的位图清0，此函数并不会改动页表。
+void free_a_phy_page(uint32_t pg_phy_addr) {
+  struct pool *mem_pool;
+  uint32_t bit_idx = 0;
+  if (pg_phy_addr >= user_pool.phy_addr_start) {
+    mem_pool = &user_pool;
+    bit_idx = (pg_phy_addr - user_pool.phy_addr_start) / PG_SIZE;
+  } else {
+    mem_pool = &kernel_pool;
+    bit_idx = (pg_phy_addr - kernel_pool.phy_addr_start) / PG_SIZE;
+  }
+  bitmap_set(&mem_pool->pool_bitmap, bit_idx, 0);
+}
+
 //初始化内存池
 static void mem_pool_init(int32_t all_mem) {
   put_str("mem_pool_init start\n");

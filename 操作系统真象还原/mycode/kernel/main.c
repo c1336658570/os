@@ -23,11 +23,11 @@ int main(void) {
    init_all();
 
 /*************    写入应用程序    *************/
-  uint32_t file_size = 23120;
+  uint32_t file_size = 24092;
   uint32_t sec_cnt = DIV_ROUND_UP(file_size, 512);
   struct disk* sda = &channels[0].devices[0];
   void* prog_buf = sys_malloc(sec_cnt * SECTOR_SIZE);
-  memset(prog_buf, 0, sec_cnt * SECTOR_SIZE);
+  memset(prog_buf, 0, sec_cnt * SECTOR_SIZE + 512);
   ide_read(sda, 220, prog_buf, sec_cnt);
   int32_t fd1 = sys_open("/prog_no_arg", O_CREAT|O_RDWR);
   if (fd1 != -1) {
@@ -36,8 +36,12 @@ int main(void) {
       while(1);
     }
   }
+  sys_close(fd1);
+  sys_free(prog_buf);
 
-  file_size = 23848;
+  file_size = 24092;
+  sec_cnt = DIV_ROUND_UP(file_size, 512);
+  prog_buf = sys_malloc(sec_cnt * SECTOR_SIZE);
   memset(prog_buf, 0, sec_cnt * SECTOR_SIZE);
   ide_read(sda, 300, prog_buf, sec_cnt);
   int32_t fd2 = sys_open("/prog_arg", O_CREAT|O_RDWR);
@@ -47,12 +51,43 @@ int main(void) {
         while(1);
      }
   }
+  sys_close(fd2);
+  sys_free(prog_buf);
+
+  file_size = 24348; 
+  sec_cnt = DIV_ROUND_UP(file_size, 512);
+  prog_buf = sys_malloc(sec_cnt * SECTOR_SIZE);
+  memset(prog_buf, 0, sec_cnt * SECTOR_SIZE);
+  ide_read(sda, 400, prog_buf, sec_cnt);
+  int32_t fd3 = sys_open("/cat", O_CREAT|O_RDWR);
+  if (fd3 != -1) {
+      if(sys_write(fd3, prog_buf, file_size) == -1) {
+        printk("file write error!\n");
+        while(1);
+      }
+  }
+  sys_close(fd3);
+  sys_free(prog_buf);
+
+  file_size = 1261;
+  sec_cnt = DIV_ROUND_UP(file_size, 512);
+  prog_buf = sys_malloc(sec_cnt * SECTOR_SIZE);
+  memset(prog_buf, 0, sec_cnt * SECTOR_SIZE);
+  ide_read(sda, 500, prog_buf, sec_cnt);
+  int32_t fd4 = sys_open("/cat.c", O_CREAT|O_RDWR);
+  if (fd4 != -1) {
+      if(sys_write(fd4, prog_buf, file_size) == -1) {
+        printk("file write error!\n");
+        while(1);
+      }
+  }
+  sys_close(fd4);
   sys_free(prog_buf);
 
 /*************    写入应用程序结束   *************/
    cls_screen();
    console_put_str("[rabbit@localhost /]$ ");
-   while(1);
+   thread_exit(running_thread(), true);
    return 0;
 }
 
@@ -66,7 +101,13 @@ init是用户级进程，因此咱们要调用process_execute创建进程，但�
 void init(void) {
   uint32_t ret_pid = fork();
   if(ret_pid) {       //父进程
-    while(1);
+    int status;
+    int child_pid;
+    //init在此处不停地回收僵尸进程
+    while(1) {
+      child_pid = wait(&status);
+      printf("I`m init, My pid is 1, I recieve a child, It`s pid is %d, status is %d\n", child_pid, status);
+    }
   } else {            //子进程
     my_shell();
   }

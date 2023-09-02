@@ -30,7 +30,7 @@ OBJS = $(BUILD_DIR)/main.o $(BUILD_DIR)/init.o $(BUILD_DIR)/interrupt.o \
 	   $(BUILD_DIR)/stdio.o $(BUILD_DIR)/ide.o $(BUILD_DIR)/stdio-kernel.o $(BUILD_DIR)/fs.o	\
 	   $(BUILD_DIR)/inode.o $(BUILD_DIR)/file.o $(BUILD_DIR)/dir.o $(BUILD_DIR)/fork.o	\
 		 $(BUILD_DIR)/shell.o $(BUILD_DIR)/assert.o $(BUILD_DIR)/buildin_cmd.o \
-		 $(BUILD_DIR)/exec.o
+		 $(BUILD_DIR)/exec.o $(BUILD_DIR)/wait_exit.o
 
 ##############     MBR代码编译     ############### 
 $(BUILD_DIR)/mbr.bin: boot/mbr.S 
@@ -181,6 +181,12 @@ $(BUILD_DIR)/exec.o: userprog/exec.c userprog/exec.h thread/thread.h lib/stdint.
 	lib/kernel/stdio-kernel.h fs/fs.h lib/string.h lib/stdint.h
 	$(CC) $(CFLAGS) $< -o $@
 
+$(BUILD_DIR)/wait_exit.o: userprog/wait_exit.c userprog/wait_exit.h \
+	userprog/../thread/thread.h lib/stdint.h lib/kernel/list.h \
+	kernel/global.h lib/kernel/bitmap.h kernel/memory.h kernel/debug.h \
+	thread/thread.h lib/kernel/stdio-kernel.h
+	$(CC) $(CFLAGS) $< -o $@
+
 ##############    汇编代码编译    ###############
 $(BUILD_DIR)/kernel.o: kernel/kernel.S
 	$(AS) $(ASFLAGS) $< -o $@
@@ -203,6 +209,8 @@ image: mk_dir $(BUILD_DIR)/kernel.bin $(BUILD_DIR)/mbr.bin $(BUILD_DIR)/loader.b
 	dd if=$(BUILD_DIR)/kernel.bin of=os.img bs=512 count=200 seek=9 conv=notrunc
 	dd if=command/prog_no_arg of=/home/cccmmf/操作系统/操作系统真象还原/mycode/os.img bs=512 count=100 seek=220 conv=notrunc
 	dd if=command/prog_arg of=/home/cccmmf/操作系统/操作系统真象还原/mycode/os.img bs=512 count=100 seek=300 conv=notrunc
+	dd if=command/cat of=/home/cccmmf/操作系统/操作系统真象还原/mycode/os.img bs=512 count=100 seek=400 conv=notrunc
+	dd if=command/cat.c of=/home/cccmmf/操作系统/操作系统真象还原/mycode/os.img bs=512 count=100 seek=500 conv=notrunc
 
 
 clean:
