@@ -483,6 +483,7 @@ int32_t file_write(struct file *file, const void *buf, uint32_t count) {
     return -1;
   }
   inode_sync(cur_part, file->fd_inode, inode_buf);
+  sys_free(inode_buf);
 
   //inode_sync(cur_part, file->fd_inode, io_buf);   //同步inode
   sys_free(all_blocks);
