@@ -1,0 +1,2 @@
+实现sys_fork，fork
+添加userprog/fork.h，userprog/fork.c，修改userprog/syscall-init.c，修改lib/user/syscall.c，在thread/thread.h中的task_struct中添加父进程pid，在thread/thread.c中实现fork_pid函数，在thread/thread.c中修改init_thread函数，完成对父进程pid的初始化，在thread/thread.c中修改thread_init，完成init进程的创建，在kernel/memory.c中添加get_a_page_without_opvaddrbitmap函数

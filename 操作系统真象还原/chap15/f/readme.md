@@ -1,0 +1,1 @@
+修改shell/buildin_cmd.c，shell/buildin_cmd.h，shell/shell.h，shell/shell,c，实现ls、cd、mkdir、ps、rm等命令
