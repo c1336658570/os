@@ -50,12 +50,21 @@ $(BIN):$(BIN).o simple_crt.a
 cat_:$(BIN)
 
 
-all:prog_arg prog_no_arg $(BIN)
+prog_pipe.o:prog_pipe.c
+	gcc $(CFLAGS) $(LIBS) -o $@ $^
 
-image:prog_arg prog_no_arg $(BIN)
+prog_pipe:prog_pipe.o simple_crt.a
+	ld $^ -o $@ -melf_i386
+
+prog_pipe_:prog_pipe
+
+
+all:prog_arg prog_no_arg $(BIN) prog_pipe
+
+image:prog_arg prog_no_arg $(BIN) prog_pipe
 
 clean:
-	rm -rf *.o simple_crt.a prog_no_arg prog_arg cat
+	rm -rf *.o simple_crt.a prog_no_arg prog_arg cat prog_pipe
 
 .PHONY:
 	no_arg arg all clean

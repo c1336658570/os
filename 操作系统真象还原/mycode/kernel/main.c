@@ -23,11 +23,11 @@ int main(void) {
    init_all();
 
 /*************    写入应用程序    *************/
-  uint32_t file_size = 24092;
+  uint32_t file_size = 23700;
   uint32_t sec_cnt = DIV_ROUND_UP(file_size, 512);
   struct disk* sda = &channels[0].devices[0];
   void* prog_buf = sys_malloc(sec_cnt * SECTOR_SIZE);
-  memset(prog_buf, 0, sec_cnt * SECTOR_SIZE + 512);
+  memset(prog_buf, 0, sec_cnt * SECTOR_SIZE);
   ide_read(sda, 220, prog_buf, sec_cnt);
   int32_t fd1 = sys_open("/prog_no_arg", O_CREAT|O_RDWR);
   if (fd1 != -1) {
@@ -39,7 +39,7 @@ int main(void) {
   sys_close(fd1);
   sys_free(prog_buf);
 
-  file_size = 24092;
+  file_size = 24212;
   sec_cnt = DIV_ROUND_UP(file_size, 512);
   prog_buf = sys_malloc(sec_cnt * SECTOR_SIZE);
   memset(prog_buf, 0, sec_cnt * SECTOR_SIZE);
@@ -54,7 +54,7 @@ int main(void) {
   sys_close(fd2);
   sys_free(prog_buf);
 
-  file_size = 24348; 
+  file_size = 24476; 
   sec_cnt = DIV_ROUND_UP(file_size, 512);
   prog_buf = sys_malloc(sec_cnt * SECTOR_SIZE);
   memset(prog_buf, 0, sec_cnt * SECTOR_SIZE);
@@ -82,6 +82,21 @@ int main(void) {
       }
   }
   sys_close(fd4);
+  sys_free(prog_buf);
+
+  file_size = 24144;
+  sec_cnt = DIV_ROUND_UP(file_size, 512);
+  prog_buf = sys_malloc(sec_cnt * SECTOR_SIZE);
+  memset(prog_buf, 0, sec_cnt * SECTOR_SIZE);
+  ide_read(sda, 600, prog_buf, sec_cnt);
+  int32_t fd5 = sys_open("/prog_pipe", O_CREAT|O_RDWR);
+  if (fd5 != -1) {
+      if(sys_write(fd5, prog_buf, file_size) == -1) {
+        printk("file write error!\n");
+        while(1);
+      }
+  }
+  sys_close(fd5);
   sys_free(prog_buf);
 
 /*************    写入应用程序结束   *************/
