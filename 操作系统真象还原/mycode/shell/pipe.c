@@ -77,3 +77,20 @@ uint32_t pipe_write(int32_t fd, const void* buf, uint32_t count) {
   }
   return bytes_write;
 }
+
+//将文件描述符old_local_fd重定向为new_local_fd
+//接受2个参数，旧文件描述符old_local_fd、新文件描述符new_local_fd，
+//功能是将文件描述符old_local_fd重定向为new_local_fd
+void sys_fd_redirect(uint32_t old_local_fd, uint32_t new_local_fd) {
+  struct task_struct* cur = running_thread();
+  //针对恢复标准描述符
+  if (new_local_fd < 3) {
+    //pcb中文件描述符表fd_table和全局文件表file_table中的前3个元素都是预留的，
+    //它们分别作为标准输入、标准输出和标准错误（未实现，但依然预留），因此，如果new_local_fd小于3的话，
+    //不需要从fd_table中获取元素值，可以直接把new_local_fd赋值给fd_table[old_local_fd]
+    cur->fd_table[old_local_fd] = new_local_fd;
+  } else {
+    uint32_t new_global_fd = cur->fd_table[new_local_fd];
+    cur->fd_table[old_local_fd] = new_global_fd;
+  }
+}

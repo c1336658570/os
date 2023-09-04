@@ -23,7 +23,7 @@ int main(void) {
    init_all();
 
 /*************    写入应用程序    *************/
-  uint32_t file_size = 23700;
+  uint32_t file_size = 23964;
   uint32_t sec_cnt = DIV_ROUND_UP(file_size, 512);
   struct disk* sda = &channels[0].devices[0];
   void* prog_buf = sys_malloc(sec_cnt * SECTOR_SIZE);
@@ -39,7 +39,7 @@ int main(void) {
   sys_close(fd1);
   sys_free(prog_buf);
 
-  file_size = 24212;
+  file_size = 24480;
   sec_cnt = DIV_ROUND_UP(file_size, 512);
   prog_buf = sys_malloc(sec_cnt * SECTOR_SIZE);
   memset(prog_buf, 0, sec_cnt * SECTOR_SIZE);
@@ -54,7 +54,7 @@ int main(void) {
   sys_close(fd2);
   sys_free(prog_buf);
 
-  file_size = 24476; 
+  file_size = 24776; 
   sec_cnt = DIV_ROUND_UP(file_size, 512);
   prog_buf = sys_malloc(sec_cnt * SECTOR_SIZE);
   memset(prog_buf, 0, sec_cnt * SECTOR_SIZE);
@@ -69,7 +69,7 @@ int main(void) {
   sys_close(fd3);
   sys_free(prog_buf);
 
-  file_size = 1261;
+  file_size = 1034;
   sec_cnt = DIV_ROUND_UP(file_size, 512);
   prog_buf = sys_malloc(sec_cnt * SECTOR_SIZE);
   memset(prog_buf, 0, sec_cnt * SECTOR_SIZE);
@@ -84,7 +84,7 @@ int main(void) {
   sys_close(fd4);
   sys_free(prog_buf);
 
-  file_size = 24144;
+  file_size = 24408;
   sec_cnt = DIV_ROUND_UP(file_size, 512);
   prog_buf = sys_malloc(sec_cnt * SECTOR_SIZE);
   memset(prog_buf, 0, sec_cnt * SECTOR_SIZE);
