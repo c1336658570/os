@@ -495,6 +495,9 @@ int32_t sys_read(int32_t fd, void* buf, uint32_t count) {
         *buffer = ioq_getchar(&kbd_buf);
         bytes_read++;
         buffer++;
+        if (*(buffer -1) == '\r') {
+          break;
+        }
       }
       ret = (bytes_read == 0 ? -1 : (int32_t)bytes_read);
     }
