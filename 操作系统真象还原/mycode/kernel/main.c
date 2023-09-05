@@ -54,7 +54,7 @@ int main(void) {
   sys_close(fd2);
   sys_free(prog_buf);
 
-  file_size = 24776; 
+  file_size = 24784; 
   sec_cnt = DIV_ROUND_UP(file_size, 512);
   prog_buf = sys_malloc(sec_cnt * SECTOR_SIZE);
   memset(prog_buf, 0, sec_cnt * SECTOR_SIZE);
@@ -69,7 +69,7 @@ int main(void) {
   sys_close(fd3);
   sys_free(prog_buf);
 
-  file_size = 1034;
+  file_size = 974;
   sec_cnt = DIV_ROUND_UP(file_size, 512);
   prog_buf = sys_malloc(sec_cnt * SECTOR_SIZE);
   memset(prog_buf, 0, sec_cnt * SECTOR_SIZE);
