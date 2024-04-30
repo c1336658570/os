@@ -1,15 +1,15 @@
 megs : 32
 
 #注意路径 必须是你安装的路径 别弄错了
-romimage: file=/usr/local/share/bochs/BIOS-bochs-latest
-vgaromimage: file=/usr/local/share/bochs/VGABIOS-lgpl-latest
+romimage: file=/home/cccmmf/bochs-gdb/share/bochs/BIOS-bochs-latest
+vgaromimage: file=/home/cccmmf/bochs-gdb/share/bochs/VGABIOS-lgpl-latest
 
 boot: disk
 
 log: bochs.out
 
 mouse:enabled=0
-keyboard:keymap=/usr/local/share/bochs/keymaps/x11-pc-us.map
+keyboard:keymap=/home/cccmmf/bochs-gdb/share/bochs/keymaps/x11-pc-us.map
 
 ata0:enabled=1,ioaddr1=0x1f0,ioaddr2=0x3f0,irq=14
 
